@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Create Account - SafeHer AI</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#080b12">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/style.css">
+  <style>
+    .auth-page {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .auth-card {
+      width: 100%;
+      max-width: 420px;
+      background: rgba(16, 23, 38, 0.85);
+      backdrop-filter: blur(25px);
+      border: 1px solid var(--border-subtle);
+      border-radius: 20px;
+      padding: 32px 24px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+    }
+    .auth-header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .form-group {
+      margin-bottom: 14px;
+    }
+    .form-group label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: #94a3b8;
+      margin-bottom: 6px;
+    }
+    .auth-input {
+      width: 100%;
+      padding: 12px 16px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      color: #fff;
+      font-size: 14px;
+      outline: none;
+      transition: var(--transition-smooth);
+    }
+    .auth-input:focus {
+      border-color: var(--neon-cyan);
+      box-shadow: 0 0 12px rgba(0, 242, 254, 0.2);
+    }
+    .btn-submit {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, var(--neon-cyan), var(--neon-blue));
+      color: #080b12;
+      font-family: var(--font-heading);
+      font-size: 15px;
+      font-weight: 800;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body class="auth-page">
+
+  <div class="auth-card">
+    <div class="auth-header">
+      <div style="width:48px; height:48px; border-radius:12px; background:linear-gradient(135deg, #ff0055, #7928ca); display:flex; align-items:center; justify-content:center; font-size:24px; margin:0 auto 12px auto; box-shadow:0 0 20px rgba(255,0,85,0.4);">
+        🛡️
+      </div>
+      <h2 style="font-family:var(--font-heading); font-size:22px; font-weight:800; color:#fff;">Register on SafeHer AI</h2>
+      <p style="font-size:12px; color:#94a3b8; margin-top:4px;">Protect yourself & connect your guardians</p>
+    </div>
+
+    <form id="form-register">
+      <div class="form-group">
+        <label>Full Name *</label>
+        <input type="text" id="reg-name" class="auth-input" required placeholder="Sakshi Anbhule">
+      </div>
+      <div class="form-group">
+        <label>Email Address *</label>
+        <input type="email" id="reg-email" class="auth-input" required placeholder="sakshi@safeher.in">
+      </div>
+      <div class="form-group">
+        <label>Phone Number (WhatsApp) *</label>
+        <input type="tel" id="reg-phone" class="auth-input" required placeholder="9876543210">
+      </div>
+      <div class="form-group">
+        <label>Password (min 6 characters) *</label>
+        <input type="password" id="reg-password" class="auth-input" required placeholder="••••••••">
+      </div>
+      <div id="reg-error" style="display:none; color:#ff4d4d; font-size:12px; margin-bottom:12px; text-align:center;"></div>
+      <button type="submit" class="btn-submit">Create SafeHer Account</button>
+    </form>
+
+    <div style="text-align:center; margin-top:20px; font-size:13px; color:#94a3b8;">
+      Already have an account? <a href="/login" style="color:var(--neon-cyan); font-weight:700; text-decoration:none;">Log In</a>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('form-register');
+    const errBox = document.getElementById('reg-error');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      errBox.style.display = 'none';
+
+      const name = document.getElementById('reg-name').value.trim();
+      const email = document.getElementById('reg-email').value.trim();
+      const phone = document.getElementById('reg-phone').value.trim();
+      const password = document.getElementById('reg-password').value;
+
+      try {
+        const resp = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, email, phone, password })
+        });
+        const data = await resp.json();
+
+        if (data.success) {
+          window.location.href = '/';
+        } else {
+          errBox.innerText = data.error || 'Registration failed';
+          errBox.style.display = 'block';
+        }
+      } catch (err) {
+        errBox.innerText = 'Network error. Please try again.';
+        errBox.style.display = 'block';
+      }
+    });
+  </script>
+</body>
+</html>

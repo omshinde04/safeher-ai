@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Guardian Safety Monitor - SafeHer AI</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#080b12">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="/static/css/style.css">
+  <style>
+    .guardian-container {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+    .status-banner-live {
+      padding: 16px;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      transition: var(--transition-smooth);
+    }
+    .status-banner-live.safe {
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid #10b981;
+      color: #10b981;
+    }
+    .status-banner-live.danger {
+      background: rgba(255, 0, 85, 0.2);
+      border: 2px solid #ff0055;
+      color: #ff0055;
+      animation: pulseDanger 1.5s infinite;
+    }
+    @keyframes pulseDanger {
+      0%, 100% { box-shadow: 0 0 10px rgba(255,0,85,0.4); }
+      50% { box-shadow: 0 0 30px rgba(255,0,85,0.9); }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <div class="brand-wrapper">
+      <div class="brand-shield" style="background:linear-gradient(135deg, #10b981, #00f2fe);">👨‍👩‍👧</div>
+      <div class="brand-info">
+        <h1>Guardian Safety View</h1>
+        <div class="brand-status">
+          <div class="pulse-dot"></div>
+          <span>Live Tracking Active</span>
+        </div>
+      </div>
+    </div>
+    <div style="font-family:var(--font-mono); font-size:12px; color:var(--neon-cyan); background:var(--bg-card); padding:6px 10px; border-radius:8px; border:1px solid var(--border-subtle);">
+      CODE: <span id="display-guardian-code">{{ guardian_code }}</span>
+    </div>
+  </header>
+
+  <main class="guardian-container">
+
+    <!-- Live Status Banner -->
+    <div id="guardian-status-banner" class="status-banner-live safe">
+      <div>
+        <div style="font-size:11px; text-transform:uppercase; letter-spacing:1px; opacity:0.8;">Safety Status</div>
+        <div id="guardian-status-title" style="font-family:var(--font-heading); font-size:20px; font-weight:800;">
+          All Clear & Protected
+        </div>
+        <div id="guardian-status-sub" style="font-size:12px; margin-top:2px; opacity:0.9;">No emergency distress active.</div>
+      </div>
+      <div id="guardian-status-icon" style="font-size:32px;">🛡️</div>
+    </div>
+
+    <!-- User Profile & Vitals -->
+    <div class="glass-card">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <h2 id="user-name-title" style="font-family:var(--font-heading); font-size:18px; font-weight:800;">Loading...</h2>
+          <p id="user-phone-sub" style="font-size:13px; color:#94a3b8;">Connecting to telemetry...</p>
+        </div>
+        <a id="btn-call-user" href="#" style="background:#25d366; color:#080b12; padding:8px 14px; border-radius:8px; font-weight:800; font-size:12px; text-decoration:none; display:flex; align-items:center; gap:6px;">
+          📞 Call User
+        </a>
+      </div>
+    </div>
+
+    <!-- Live Map -->
+    <div class="glass-card" style="padding:12px;">
+      <div class="card-title" style="margin-bottom:8px;">
+        <span>📍 Live GPS Tracking</span>
+        <span id="last-ping-time" style="font-family:var(--font-mono); font-size:11px; color:#94a3b8;">Just now</span>
+      </div>
+      <div style="height:320px; width:100%; border-radius:12px; overflow:hidden; border:1px solid var(--border-subtle);">
+        <div id="guardian-map" style="width:100%; height:100%; background:#111;"></div>
+      </div>
+      <div style="margin-top:10px; display:flex; justify-content:space-between; align-items:center;">
+        <div style="font-family:var(--font-mono); font-size:12px; color:var(--neon-cyan);">
+          Battery: <span id="guardian-battery-val">--%</span>
+        </div>
+        <a id="btn-open-google-maps" href="#" target="_blank" style="color:var(--neon-cyan); font-size:12px; font-weight:700; text-decoration:none;">
+          Open in Google Maps ↗
+        </a>
+      </div>
+    </div>
+
+    <!-- Active Journey Check-In Widget -->
+    <div id="active-checkin-card" class="glass-card" style="display:none;">
+      <div class="card-title">
+        <span>⏱️ Ongoing Journey Check-In</span>
+      </div>
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <div style="font-weight:700; font-size:14px;" id="checkin-dest-val">Heading home</div>
+          <div style="font-size:12px; color:#94a3b8;">Expected arrival by: <span id="checkin-expires-val">--:--</span></div>
+        </div>
+        <div style="padding:4px 10px; background:rgba(0,242,254,0.1); color:var(--neon-cyan); border-radius:6px; font-size:11px; font-weight:700;">
+          MONITORED
+        </div>
+      </div>
+    </div>
+
+    <!-- Emergency Action Buttons -->
+    <div class="glass-card">
+      <div class="card-title">
+        <span>🚨 Need Immediate Help?</span>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+        <a href="tel:112" style="background:#ff0055; color:#fff; padding:12px; text-align:center; text-decoration:none; border-radius:8px; font-weight:800; font-size:13px;">
+          Dial 112 📞
+        </a>
+        <a href="tel:1091" style="background:rgba(255,255,255,0.06); color:#fff; border:1px solid var(--border-subtle); padding:12px; text-align:center; text-decoration:none; border-radius:8px; font-weight:700; font-size:13px;">
+          Women Helpline 1091
+        </a>
+      </div>
+    </div>
+
+  </main>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const guardianCode = "{{ guardian_code }}";
+    let guardianMap = null;
+    let guardianMarker = null;
+
+    function initGuardianMap(lat, lng) {
+      if (!guardianMap) {
+        guardianMap = L.map('guardian-map', { zoomControl: false }).setView([lat, lng], 15);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+          attribution: '&copy; OSM &copy; CARTO'
+        }).addTo(guardianMap);
+        L.control.zoom({ position: 'bottomright' }).addTo(guardianMap);
+
+        const icon = L.divIcon({
+          className: 'custom-pulse-marker',
+          html: `<div style="width:18px; height:18px; background:#00f2fe; border-radius:50%; box-shadow:0 0 20px #00f2fe; border:3px solid #fff;"></div>`,
+          iconSize: [18, 18],
+          iconAnchor: [9, 9]
+        });
+
+        guardianMarker = L.marker([lat, lng], { icon }).addTo(guardianMap);
+      } else {
+        guardianMarker.setLatLng([lat, lng]);
+        guardianMap.setView([lat, lng]);
+      }
+    }
+
+    async function pollGuardianTelemetry() {
+      try {
+        const resp = await fetch(`/api/guardian/status/${guardianCode}`);
+        if (!resp.ok) return;
+
+        const data = await resp.json();
+        if (data.user) {
+          document.getElementById('user-name-title').innerText = data.user.name;
+          document.getElementById('user-phone-sub').innerText = `Phone: ${data.user.phone}`;
+          document.getElementById('btn-call-user').href = `tel:${data.user.phone}`;
+        }
+
+        // SOS Status evaluation
+        const banner = document.getElementById('guardian-status-banner');
+        const title = document.getElementById('guardian-status-title');
+        const sub = document.getElementById('guardian-status-sub');
+        const icon = document.getElementById('guardian-status-icon');
+
+        if (data.latest_sos && data.latest_sos.status === 'active') {
+          banner.className = 'status-banner-live danger';
+          title.innerText = '🚨 EMERGENCY SOS ACTIVE!';
+          sub.innerText = `Alert triggered via ${data.latest_sos.trigger_type.toUpperCase()} at ${data.latest_sos.timestamp}`;
+          icon.innerText = '🚨';
+        } else {
+          banner.className = 'status-banner-live safe';
+          title.innerText = 'All Clear & Protected';
+          sub.innerText = 'No emergency distress active.';
+          icon.innerText = '🛡️';
+        }
+
+        // GPS & Battery
+        let lat = 18.6186;
+        let lng = 73.7482;
+        let battery = 100;
+
+        if (data.latest_sos) {
+          if (data.latest_sos.latitude && data.latest_sos.longitude) {
+            lat = data.latest_sos.latitude;
+            lng = data.latest_sos.longitude;
+          }
+          battery = data.latest_sos.battery_level || 100;
+          document.getElementById('last-ping-time').innerText = data.latest_sos.timestamp;
+        }
+
+        document.getElementById('guardian-battery-val').innerText = `${battery}%`;
+        document.getElementById('btn-open-google-maps').href = `https://www.google.com/maps?q=${lat},${lng}`;
+
+        initGuardianMap(lat, lng);
+
+        // Journey check-in
+        const checkinCard = document.getElementById('active-checkin-card');
+        if (data.active_checkin) {
+          checkinCard.style.display = 'block';
+          document.getElementById('checkin-dest-val').innerText = `Heading to: ${data.active_checkin.destination}`;
+          document.getElementById('checkin-expires-val').innerText = data.active_checkin.expires_at;
+        } else {
+          checkinCard.style.display = 'none';
+        }
+
+      } catch (e) {
+        console.warn('Telemetry poll error:', e);
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      pollGuardianTelemetry();
+      setInterval(pollGuardianTelemetry, 5000);
+    });
+  </script>
+</body>
+</html>
