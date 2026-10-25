@@ -482,7 +482,12 @@ def assistant_chat():
     if not user_query:
         return jsonify({'error': 'Query message is required.'}), 400
 
-    api_key = os.environ.get('GEMINI_API_KEY')
+    api_key = (os.environ.get('GEMINI_API_KEY') or '').strip()
+    # Auto-heal accidental 0 (zero) vs O (capital letter O) typo in key if present
+    if 'E0Jp' in api_key:
+        api_key = api_key.replace('E0Jp', 'EOJp')
+
+    print(f"[GEMINI] Incoming chat query, key present: {bool(api_key)}, key prefix: {api_key[:6] if api_key else 'None'}", flush=True)
 
     # If Gemini API key is available, query Google Gemini REST endpoint
     if api_key:
@@ -508,7 +513,12 @@ def assistant_chat():
                 "   • If English ('en'): Crisp, formatted with bold highlights, bullets, and emergency numbers.\n"
                 "   • If user query is in Maranglish or Hinglish, understand their distress and reply in the selected language {language}."
             )
-            models_to_try = ['gemini-3-flash-preview', 'gemini-3.5-flash']
+            models_to_try = [
+                'gemini-3.5-flash-lite',
+                'gemma-4-26b-a4b-it',
+                'gemini-3-flash-preview',
+                'gemini-3.5-flash'
+            ]
             payload = {
                 "contents": [
                     {
@@ -516,16 +526,14 @@ def assistant_chat():
                             {"text": f"{prompt_system}\n\nUser Question: {user_query}"}
                         ]
                     }
-                ],
-                "generationConfig": {
-                    "thinkingConfig": {"thinkingBudget": 0}
-                }
+                ]
             }
 
             for model_name in models_to_try:
                 try:
                     gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
                     resp = requests.post(gemini_url, json=payload, timeout=20)
+                    print(f"[GEMINI] Model: {model_name}, HTTP Status: {resp.status_code}", flush=True)
                     if resp.status_code == 200:
                         result = resp.json()
                         for cand in result.get('candidates', []):
@@ -536,9 +544,13 @@ def assistant_chat():
                                         'source': 'Google Gemini AI',
                                         'language': language
                                     })
-                except Exception:
+                    else:
+                        print(f"[GEMINI ERROR] Status {resp.status_code}: {resp.text[:200]}", flush=True)
+                except Exception as ex:
+                    print(f"[GEMINI EXCEPTION] Model {model_name}: {ex}", flush=True)
                     continue
-        except Exception:
+        except Exception as e:
+            print(f"[GEMINI OUTSIDE EXCEPTION] {e}", flush=True)
             pass
 
     # Intelligent Local Fallback Engine (Runs offline / without API key!)
@@ -675,6 +687,46 @@ def get_safety_tips():
     conn.close()
 
     return jsonify({'tips': tips, 'language': lang})
+
+# --- Healthcheck & Diagnostic Route ---
+@app.route('/api/gemini-check', methods=['GET'])
+def gemini_check():
+    k = (os.environ.get('GEMINI_API_KEY') or '').strip()
+    if 'E0Jp' in k:
+        k = k.replace('E0Jp', 'EOJp')
+    if not k:
+        return jsonify({
+            'status': 'error',
+            'message': 'GEMINI_API_KEY environment variable is missing on this server.'
+        }), 500
+
+    try:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key={k}"
+        resp = requests.post(
+            url,
+            json={'contents': [{'parts': [{'text': 'Hello, system active test.'}]}]},
+            timeout=10
+        )
+        if resp.status_code == 200:
+            return jsonify({
+                'status': 'ok',
+                'connected': True,
+                'model': 'gemini-3.5-flash-lite',
+                'message': 'Google Gemini API is connected and responding live!',
+                'key_prefix': k[:7] + '...',
+                'key_length': len(k)
+            })
+        else:
+            return jsonify({
+                'status': 'error',
+                'connected': False,
+                'http_status': resp.status_code,
+                'google_error': resp.json() if 'application/json' in resp.headers.get('Content-Type', '') else resp.text[:300],
+                'key_prefix': k[:7] + '...'
+            }), 502
+    except Exception as e:
+        return jsonify({'status': 'exception', 'error': str(e)}), 500
+
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5001))
