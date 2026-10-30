@@ -49,7 +49,7 @@ def log_event(category, message, level="INFO"):
 
 # --- Fast2SMS Automated SMS Gateway Integration ---
 FAST2SMS_API_KEY = os.environ.get('FAST2SMS_API_KEY', 'LEt0L9MHA2ufWZ3KgcRTbWnNJiKGlNdXCQubhrAYQCpRmR6UaR0fDYRIi5P5400k47epMcy7jDU00hCX')
-ENABLE_FAST2SMS = os.environ.get('ENABLE_FAST2SMS', 'true').lower() == 'true'
+ENABLE_FAST2SMS = os.environ.get('ENABLE_FAST2SMS', 'false').lower() == 'true'
 
 def send_automated_fast2sms(contact_phones, user_name, maps_link, battery, trigger_type, guardian_url):
     """Dispatches background SMS via Fast2SMS API directly to guardian phone SIM cards."""
@@ -1271,6 +1271,36 @@ def system_logs():
         'displayed': min(limit, len(SYSTEM_LOGS)),
         'logs': list(reversed(SYSTEM_LOGS[-limit:])),
         'server_time': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    })
+
+@app.route('/api/system/sms-toggle', methods=['GET', 'POST'])
+def toggle_sms_service():
+    """
+    Easily turn Fast2SMS automated SMS ON or OFF at runtime without restarting.
+    Usage:
+      /api/system/sms-toggle?action=on     -> Turn ON paid Fast2SMS dispatch
+      /api/system/sms-toggle?action=off    -> Turn OFF paid Fast2SMS (protect wallet)
+      /api/system/sms-toggle?action=status -> Get current status without changing
+      /api/system/sms-toggle               -> Flip current state
+    """
+    global ENABLE_FAST2SMS
+    action = request.args.get('action') or (request.get_json(silent=True) or {}).get('action')
+    if action == 'on':
+        ENABLE_FAST2SMS = True
+    elif action == 'off':
+        ENABLE_FAST2SMS = False
+    elif action == 'status':
+        pass
+    else:
+        ENABLE_FAST2SMS = not ENABLE_FAST2SMS
+
+    status_str = "ACTIVE (Paid Gateway Enabled)" if ENABLE_FAST2SMS else "PAUSED (Wallet Protected, Free Cellular Active)"
+    log_event('FAST2SMS', f"Fast2SMS service status: {status_str}")
+    return jsonify({
+        'success': True,
+        'fast2sms_enabled': ENABLE_FAST2SMS,
+        'status': status_str,
+        'message': f"Fast2SMS automated dispatch is now {status_str}."
     })
 
 

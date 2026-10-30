@@ -456,6 +456,11 @@ const SOS = {
       banner.style.cssText = 'background:#ecfdf5; border:1px solid #86efac; color:#166534; padding:10px 12px; border-radius:10px; font-size:12px; font-weight:700; margin-bottom:12px; display:flex; align-items:center; gap:8px; box-shadow:0 1px 4px rgba(22,101,52,0.06);';
       banner.innerHTML = `<span>🚀</span> <div><b>Automated Emergency SMS Sent!</b><div style="font-size:11px; font-weight:500; color:#15803d; margin-top:2px;">Fast2SMS has dispatched live distress alert &amp; GPS tracker directly to ${data.auto_sms_count} guardian SIM card(s).</div></div>`;
       linksContainer.appendChild(banner);
+    } else {
+      const banner = document.createElement('div');
+      banner.style.cssText = 'background:#f0f9ff; border:1px solid #bae6fd; color:#0369a1; padding:10px 12px; border-radius:10px; font-size:12px; font-weight:700; margin-bottom:12px; display:flex; align-items:center; gap:8px; box-shadow:0 1px 4px rgba(2,132,199,0.06);';
+      banner.innerHTML = `<span>🛡️</span> <div><b>Fast2SMS Paused (Wallet Protected)</b><div style="font-size:11px; font-weight:500; color:#0284c7; margin-top:2px;">Testing mode active: ₹0 deducted. Use free direct WhatsApp or SMS buttons below!</div></div>`;
+      linksContainer.appendChild(banner);
     }
 
     if (data.contact_links && data.contact_links.length > 0) {

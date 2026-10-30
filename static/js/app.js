@@ -17,6 +17,7 @@ const App = {
     this.loadSOSHistory();
     this.setupProfileHandlers();
     this.setupContactsHandlers();
+    this.setupSMSGatewayToggle();
     this.setupLogout();
   },
 
@@ -560,7 +561,45 @@ const App = {
     }
   },
 
-  // 7. Logout
+  // 7. Fast2SMS Developer Gateway Toggle
+  setupSMSGatewayToggle() {
+    const toggle = document.getElementById('toggle-fast2sms');
+    const badge = document.getElementById('sms-gateway-badge');
+    const sub = document.getElementById('sms-gateway-sub');
+    if (!toggle) return;
+
+    const updateUI = (enabled) => {
+      toggle.checked = !!enabled;
+      if (badge) {
+        badge.textContent = enabled ? 'LIVE (Active)' : 'PAUSED (Safe)';
+        badge.style.background = enabled ? '#dcfce7' : '#fef3c7';
+        badge.style.color = enabled ? '#15803d' : '#92400e';
+      }
+      if (sub) {
+        sub.textContent = enabled ? 'Active (₹7 per SMS sent to guardians)' : 'Paused (₹0 deducted during tests)';
+        sub.style.color = enabled ? '#15803d' : '#64748b';
+      }
+    };
+
+    // Query status on load
+    fetch('/api/system/sms-toggle?action=status')
+      .then(r => r.json())
+      .then(data => updateUI(data.fast2sms_enabled))
+      .catch(() => updateUI(false));
+
+    toggle.addEventListener('change', async () => {
+      const targetAction = toggle.checked ? 'on' : 'off';
+      try {
+        const resp = await fetch(`/api/system/sms-toggle?action=${targetAction}`, { method: 'POST' });
+        const data = await resp.json();
+        updateUI(data.fast2sms_enabled);
+      } catch (e) {
+        console.error('Failed to toggle Fast2SMS service:', e);
+      }
+    });
+  },
+
+  // 8. Logout
   setupLogout() {
     const btnLogout = document.getElementById('btn-logout');
     if (btnLogout) {
