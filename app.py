@@ -638,6 +638,48 @@ def get_telemetry_status():
         'last_seen': row['last_seen']
     })
 
+@app.route('/api/telemetry/ip-locate', methods=['GET', 'POST'])
+def ip_locate():
+    """Returns city-level coordinates using client IP address or profile without needing browser permissions."""
+    client_ip = request.headers.get('X-Forwarded-For', request.remote_addr or '').split(',')[0].strip()
+    user_id = get_current_user_id()
+    lat = 18.6186
+    lng = 73.7482
+    city = "Tathawade, Pune"
+    source = "campus_default"
+
+    if user_id:
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT last_latitude, last_longitude FROM users WHERE id = ?", (user_id,))
+        row = cursor.fetchone()
+        conn.close()
+        if row and row['last_latitude'] and row['last_longitude']:
+            lat = row['last_latitude']
+            lng = row['last_longitude']
+            source = "saved_profile"
+
+    if client_ip and client_ip not in ('127.0.0.1', 'localhost', '::1'):
+        try:
+            resp = requests.get(f"https://ipapi.co/{client_ip}/json/", timeout=3)
+            if resp.status_code == 200:
+                d = resp.json()
+                if d.get('latitude') and d.get('longitude'):
+                    lat = float(d['latitude'])
+                    lng = float(d['longitude'])
+                    city = d.get('city', 'Pune')
+                    source = "ip_network"
+        except Exception:
+            pass
+
+    return jsonify({
+        'success': True,
+        'latitude': lat,
+        'longitude': lng,
+        'city': city,
+        'source': source
+    })
+
 # --- Journey Safety Check-In APIs ---
 @app.route('/api/checkin/start', methods=['POST'])
 def start_checkin():

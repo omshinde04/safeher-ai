@@ -110,9 +110,10 @@
 
       <!-- Live GPS & Battery Telemetry Bar -->
       <div class="gps-bar">
-        <div style="display:flex; align-items:center; gap:8px; min-width:0; overflow:hidden;">
+        <div id="btn-open-gps-modal" style="display:flex; align-items:center; gap:6px; min-width:0; overflow:hidden; cursor:pointer;" title="Tap to calibrate or view location options">
           <span>📍</span>
-          <span id="gps-coords-display" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; cursor:pointer;" title="Tap to refresh GPS location" onclick="if(typeof SOS!=='undefined') SOS.trackLocation();">Detecting GPS...</span>
+          <span id="gps-coords-display" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">18.6186, 73.7482 (Locating...)</span>
+          <span style="font-size:10px; color:#6366f1;">✏️</span>
         </div>
         <div id="btn-open-battery-calibrate" style="display:flex; align-items:center; gap:4px; cursor:pointer; background:#f1f5f9; padding:4px 10px; border-radius:12px; font-size:11px; font-weight:700; color:#334155; flex-shrink:0;" title="Tap to sync battery level">
           <span>⚡</span>
@@ -729,6 +730,67 @@
   </div>
 
   <!-- ====================================================================
+       MODAL 7B: GPS & LOCATION CALIBRATION ASSISTANT
+       ==================================================================== -->
+  <div id="gps-modal" class="countdown-overlay">
+    <div class="modal-box" style="max-width: 390px; text-align:left;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <div style="font-family:var(--font-heading); font-size:18px; font-weight:800; color:#0f172a; display:flex; align-items:center; gap:8px;">
+          <span>📍</span> Location Assistant
+        </div>
+        <button type="button" id="btn-close-gps-modal-x" style="background:none; border:none; color:#64748b; font-size:20px; cursor:pointer; line-height:1;">✕</button>
+      </div>
+
+      <p style="font-size:12px; color:#64748b; margin-bottom:14px; line-height:1.5;">
+        SafeHer AI coordinates are dispatched to guardians on SOS and tracked on your live safety map.
+      </p>
+
+      <!-- Active Location Card -->
+      <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:14px; padding:14px; margin-bottom:14px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+          <span style="font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase;">Active Coordinates</span>
+          <span id="modal-gps-source" style="font-size:11px; font-weight:800; background:#e0e7ff; color:#4338ca; padding:2px 8px; border-radius:6px;">Saved Area</span>
+        </div>
+        <div id="modal-gps-coords" style="font-family:var(--font-heading); font-size:22px; font-weight:900; color:#0f172a; margin-bottom:4px; letter-spacing:-0.5px;">
+          18.6186, 73.7482
+        </div>
+        <div id="modal-gps-accuracy" style="font-size:11px; color:#64748b;">
+          Accuracy: Ready for emergency dispatch
+        </div>
+      </div>
+
+      <!-- Detection Buttons -->
+      <div style="display:flex; gap:8px; margin-bottom:14px;">
+        <button type="button" id="btn-request-satellite-gps" style="flex:1; padding:11px 8px; background:#4f46e5; color:#ffffff; border:none; border-radius:10px; font-size:12px; font-weight:800; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; box-shadow:0 2px 8px rgba(79,70,229,0.3);">
+          <span>🎯</span> Satellite GPS
+        </button>
+        <button type="button" id="btn-detect-network-ip" style="flex:1; padding:11px 8px; background:#f1f5f9; color:#1e293b; border:1px solid #cbd5e1; border-radius:10px; font-size:12px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;">
+          <span>🌐</span> Auto Network IP
+        </button>
+      </div>
+
+      <!-- Quick Area Presets -->
+      <div style="font-size:11px; font-weight:700; color:#475569; margin-bottom:8px;">Quick Area Presets (Tap to Apply):</div>
+      <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px;">
+        <button type="button" class="btn-gps-preset" data-lat="18.6186" data-lng="73.7482" data-name="JSPM Tathawade" style="padding:6px 10px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; font-size:11px; font-weight:700; color:#334155; cursor:pointer;">JSPM Tathawade</button>
+        <button type="button" class="btn-gps-preset" data-lat="18.5913" data-lng="73.7389" data-name="Hinjawadi IT" style="padding:6px 10px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; font-size:11px; font-weight:700; color:#334155; cursor:pointer;">Hinjawadi</button>
+        <button type="button" class="btn-gps-preset" data-lat="18.5987" data-lng="73.7634" data-name="Wakad" style="padding:6px 10px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; font-size:11px; font-weight:700; color:#334155; cursor:pointer;">Wakad</button>
+        <button type="button" class="btn-gps-preset" data-lat="18.5284" data-lng="73.8744" data-name="Pune Station" style="padding:6px 10px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; font-size:11px; font-weight:700; color:#334155; cursor:pointer;">Pune Station</button>
+        <button type="button" class="btn-gps-preset" data-lat="18.5314" data-lng="73.8446" data-name="Shivaji Nagar" style="padding:6px 10px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; font-size:11px; font-weight:700; color:#334155; cursor:pointer;">Shivaji Nagar</button>
+        <button type="button" class="btn-gps-preset" data-lat="18.5074" data-lng="73.8077" data-name="Kothrud" style="padding:6px 10px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; font-size:11px; font-weight:700; color:#334155; cursor:pointer;">Kothrud</button>
+      </div>
+
+      <!-- Permission Helper Card -->
+      <div id="gps-permission-help" style="background:#fffbeb; border:1px solid #fde68a; border-radius:10px; padding:10px 12px; margin-bottom:14px; font-size:11px; color:#92400e; line-height:1.45;">
+        <b>💡 Want High-Precision Satellite GPS?</b><br>
+        If your phone shows <i>Location Blocked</i>: Tap the <b>🔒 Lock Icon</b> in your browser URL bar at the top → <b>Permissions</b> → <b>Location: Allow</b>, then tap <b>Satellite GPS</b> above.
+      </div>
+
+      <button type="button" id="btn-close-gps-modal" style="width:100%; padding:11px; background:#f1f5f9; border:1px solid #cbd5e1; color:#334155; border-radius:10px; cursor:pointer; font-weight:700;">Close &amp; Keep Location</button>
+    </div>
+  </div>
+
+  <!-- ====================================================================
        MODAL 8: DISCREET FAKE CALL ESCAPE SCREEN (FOR HARASSMENT DETERRENCE)
        ==================================================================== -->
   <div id="fake-call-overlay" class="fake-call-overlay">
@@ -768,11 +830,11 @@
 
   <!-- Leaflet & SafeHer Core Scripts -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="/static/js/sensors.js?v=4.3"></script>
-  <script src="/static/js/sos.js?v=4.3"></script>
-  <script src="/static/js/map.js?v=4.3"></script>
-  <script src="/static/js/assistant.js?v=4.3"></script>
-  <script src="/static/js/checkin.js?v=4.3"></script>
-  <script src="/static/js/app.js?v=4.3"></script>
+  <script src="/static/js/sensors.js?v=4.4"></script>
+  <script src="/static/js/sos.js?v=4.4"></script>
+  <script src="/static/js/map.js?v=4.4"></script>
+  <script src="/static/js/assistant.js?v=4.4"></script>
+  <script src="/static/js/checkin.js?v=4.4"></script>
+  <script src="/static/js/app.js?v=4.4"></script>
 </body>
 </html>

@@ -6,34 +6,35 @@ const SOS = {
   countdownSeconds: 10,
   timerInterval: null,
   activeEventId: null,
-  currentLocation: { lat: null, lng: null, accuracy: null },
+  currentLocation: { lat: 18.6186, lng: 73.7482, accuracy: 25, source: 'default' },
   audioCtx: null,
   oscillator: null,
   isSirenPlaying: false,
 
   init() {
     this.restoreCachedLocation();
-    this.trackLocation();
+    this.trackLocation(false);
     this.setupListeners();
+    this.setupGpsModalListeners();
 
     // Auto-refresh GPS positioning when mobile screen turns on or tab regains focus
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') {
-        this.trackLocation();
+        this.trackLocation(false);
       }
     });
-    window.addEventListener('focus', () => this.trackLocation());
+    window.addEventListener('focus', () => this.trackLocation(false));
   },
 
   async restoreCachedLocation() {
-    // 1. Instant Cached Coordinate Loading (Eliminates "Pending" on mobile boot)
+    // 1. Instant Cached Coordinate Loading
     const cached = localStorage.getItem('safeher_cached_location');
     if (cached) {
       try {
         const parsed = JSON.parse(cached);
         if (parsed && parsed.lat && parsed.lng) {
           this.currentLocation = parsed;
-          this.updateGpsUI(parsed.lat, parsed.lng, parsed.accuracy, true);
+          this.updateGpsUI(parsed.lat, parsed.lng, parsed.accuracy, '(Saved)');
           return;
         }
       } catch (e) {}
@@ -45,19 +46,43 @@ const SOS = {
       if (resp.ok) {
         const data = await resp.json();
         if (data.latitude && data.longitude) {
-          this.currentLocation = { lat: data.latitude, lng: data.longitude, accuracy: 25 };
+          this.currentLocation = { lat: data.latitude, lng: data.longitude, accuracy: 25, source: 'profile' };
           localStorage.setItem('safeher_cached_location', JSON.stringify(this.currentLocation));
-          this.updateGpsUI(data.latitude, data.longitude, 25, true);
+          this.updateGpsUI(data.latitude, data.longitude, 25, '(Profile)');
           return;
         }
       }
     } catch (e) {}
 
-    // 3. Fallback to default campus area coordinates
-    if (!this.currentLocation.lat) {
-      this.currentLocation = { lat: 18.6186, lng: 73.7482, accuracy: 30 };
-      this.updateGpsUI(18.6186, 73.7482, 30, true);
-    }
+    // 3. Fallback: Auto-detect via zero-permission Network/IP
+    await this.fetchIPLocation();
+  },
+
+  async fetchIPLocation() {
+    try {
+      const resp = await fetch('/api/telemetry/ip-locate');
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data.latitude && data.longitude) {
+          this.currentLocation = {
+            lat: data.latitude,
+            lng: data.longitude,
+            accuracy: 100,
+            source: 'network'
+          };
+          localStorage.setItem('safeher_cached_location', JSON.stringify(this.currentLocation));
+          this.updateGpsUI(data.latitude, data.longitude, 100, '(Network IP)');
+          if (typeof SafeMap !== 'undefined' && SafeMap.updateUserMarker) {
+            SafeMap.updateUserMarker(data.latitude, data.longitude, 100);
+          }
+          return;
+        }
+      }
+    } catch (e) {}
+
+    // 4. Default Campus Coordinates (Guaranteed non-null)
+    this.currentLocation = { lat: 18.6186, lng: 73.7482, accuracy: 25, source: 'campus' };
+    this.updateGpsUI(18.6186, 73.7482, 25, '(Campus Area)');
   },
 
   // Synthesize loud emergency siren tone using Web Audio API (Zero external MP3 dependency)
@@ -104,57 +129,75 @@ const SOS = {
     }
   },
 
-  updateGpsUI(lat, lng, accuracy, isCached = false) {
+  updateGpsUI(lat, lng, accuracy, tag = null) {
     const gpsEl = document.getElementById('gps-coords-display');
-    if (!gpsEl) return;
-    const suffix = isCached ? '(Last Known)' : `(±${Math.round(accuracy || 15)}m)`;
-    gpsEl.innerHTML = `${lat.toFixed(4)}, ${lng.toFixed(4)} <span style="font-size:10px; color:${isCached ? '#64748b' : '#059669'}; font-weight:700;">${suffix}</span>`;
+    const modalCoordsEl = document.getElementById('modal-gps-coords');
+    const modalSourceEl = document.getElementById('modal-gps-source');
+    const modalAccEl = document.getElementById('modal-gps-accuracy');
+
+    let label = tag;
+    if (!label) {
+      label = accuracy ? `(±${Math.round(accuracy)}m)` : '(Live GPS)';
+    }
+
+    if (gpsEl) {
+      gpsEl.innerHTML = `${lat.toFixed(4)}, ${lng.toFixed(4)} <span style="font-size:10px; color:#059669; font-weight:800;">${label}</span>`;
+    }
+
+    if (modalCoordsEl) {
+      modalCoordsEl.innerText = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    }
+    if (modalSourceEl) {
+      modalSourceEl.innerText = label.replace(/[()]/g, '');
+    }
+    if (modalAccEl) {
+      modalAccEl.innerText = `Accuracy: ±${Math.round(accuracy || 20)}m • Ready for SOS`;
+    }
   },
 
-  trackLocation() {
+  trackLocation(isUserGesture = false) {
     if (!('geolocation' in navigator)) {
-      const gpsEl = document.getElementById('gps-coords-display');
-      if (gpsEl) gpsEl.innerText = 'GPS not supported on device';
+      this.updateGpsUI(this.currentLocation.lat, this.currentLocation.lng, 50, '(Network IP)');
       return;
     }
 
     const onPosSuccess = (pos) => {
       const { latitude, longitude, accuracy } = pos.coords;
-      this.currentLocation = { lat: latitude, lng: longitude, accuracy };
-      localStorage.setItem('safeher_cached_location', JSON.stringify({ lat: latitude, lng: longitude, accuracy }));
-      this.updateGpsUI(latitude, longitude, accuracy, false);
+      this.currentLocation = { lat: latitude, lng: longitude, accuracy, source: 'satellite' };
+      localStorage.setItem('safeher_cached_location', JSON.stringify(this.currentLocation));
+      this.updateGpsUI(latitude, longitude, accuracy, `(Live GPS ±${Math.round(accuracy)}m)`);
 
       if (typeof SafeMap !== 'undefined' && SafeMap.updateUserMarker) {
         SafeMap.updateUserMarker(latitude, longitude, accuracy);
       }
     };
 
-    // Stage 1: Ultra-fast high-accuracy query with graceful fallback
+    // Stage 1: Fast query
     navigator.geolocation.getCurrentPosition(
       onPosSuccess,
       (err) => {
-        console.warn('[SOS] High accuracy GPS fallback:', err.message);
-        // Stage 1 Fallback: Fast indoor / cellular / Wi-Fi triangulation
-        navigator.geolocation.getCurrentPosition(
-          onPosSuccess,
-          (err2) => {
-            console.warn('[SOS] Standard location error:', err2.message);
-            if (!this.currentLocation.lat) {
-              const gpsEl = document.getElementById('gps-coords-display');
-              if (gpsEl) {
-                if (err2.code === 1) { // PERMISSION_DENIED
-                  gpsEl.innerHTML = `<span style="color:#dc2626; cursor:pointer; font-weight:700;" onclick="SOS.trackLocation()">⚠️ Tap to Allow Location</span>`;
-                }
-              }
-            }
-          },
-          { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
-        );
+        console.warn('[SOS] Geolocation query note:', err.message);
+        // CRITICAL: NEVER erase coordinates with 'Tap to Allow Location'!
+        // Keep active coordinates and fall back to IP/Network coordinates
+        if (!this.currentLocation.lat || this.currentLocation.source === 'default') {
+          this.fetchIPLocation();
+        } else {
+          this.updateGpsUI(this.currentLocation.lat, this.currentLocation.lng, this.currentLocation.accuracy || 25, '(Network/Saved)');
+        }
+
+        // If user explicitly tapped "Satellite GPS" button in modal and permission was blocked, show guide
+        if (isUserGesture && err.code === 1) {
+          const helpEl = document.getElementById('gps-permission-help');
+          if (helpEl) {
+            helpEl.style.display = 'block';
+            helpEl.scrollIntoView({ behavior: 'smooth' });
+          }
+        }
       },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 15000 }
+      { enableHighAccuracy: true, timeout: isUserGesture ? 12000 : 8000, maximumAge: 15000 }
     );
 
-    // Stage 2: Continuous Satellite Watcher (keeps mobile location fresh)
+    // Stage 2: Continuous watcher (keeps mobile location fresh)
     if (this.watchId) {
       try { navigator.geolocation.clearWatch(this.watchId); } catch (e) {}
     }
@@ -162,16 +205,80 @@ const SOS = {
     this.watchId = navigator.geolocation.watchPosition(
       onPosSuccess,
       (err) => {
-        console.warn('[SOS] High-accuracy GPS watcher note:', err.message);
-        if (err.code === 1) {
-          const gpsEl = document.getElementById('gps-coords-display');
-          if (gpsEl) {
-            gpsEl.innerHTML = `<span style="color:#dc2626; cursor:pointer; font-weight:700;" onclick="SOS.trackLocation()">⚠️ Tap to Allow Location</span>`;
-          }
-        }
+        // Silent fallback: never wipe coordinates on background watch error
       },
       { enableHighAccuracy: true, maximumAge: 5000 }
     );
+  },
+
+  setManualLocation(lat, lng, name) {
+    this.currentLocation = { lat: parseFloat(lat), lng: parseFloat(lng), accuracy: 15, source: name };
+    localStorage.setItem('safeher_cached_location', JSON.stringify(this.currentLocation));
+    this.updateGpsUI(this.currentLocation.lat, this.currentLocation.lng, 15, `(${name})`);
+
+    if (typeof SafeMap !== 'undefined' && SafeMap.updateUserMarker) {
+      SafeMap.updateUserMarker(this.currentLocation.lat, this.currentLocation.lng, 15);
+      if (SafeMap.map) SafeMap.map.setView([this.currentLocation.lat, this.currentLocation.lng], 15);
+    }
+
+    // Sync to server
+    if (window.SafeHerBattery && typeof window.SafeHerBattery.syncTelemetryToServer === 'function') {
+      window.SafeHerBattery.syncTelemetryToServer();
+    }
+
+    const modal = document.getElementById('gps-modal');
+    if (modal) modal.style.display = 'none';
+  },
+
+  setupGpsModalListeners() {
+    const btnOpen = document.getElementById('btn-open-gps-modal');
+    const modal = document.getElementById('gps-modal');
+    const btnClose = document.getElementById('btn-close-gps-modal');
+    const btnCloseX = document.getElementById('btn-close-gps-modal-x');
+    const btnSatellite = document.getElementById('btn-request-satellite-gps');
+    const btnNetwork = document.getElementById('btn-detect-network-ip');
+
+    const openModal = () => {
+      if (modal) {
+        modal.style.display = 'flex';
+        this.updateGpsUI(this.currentLocation.lat, this.currentLocation.lng, this.currentLocation.accuracy, this.currentLocation.source);
+      }
+    };
+
+    const closeModal = () => {
+      if (modal) modal.style.display = 'none';
+    };
+
+    if (btnOpen) btnOpen.addEventListener('click', openModal);
+    if (btnClose) btnClose.addEventListener('click', closeModal);
+    if (btnCloseX) btnCloseX.addEventListener('click', closeModal);
+
+    if (btnSatellite) {
+      btnSatellite.addEventListener('click', () => {
+        btnSatellite.innerText = '⌛ Locating...';
+        this.trackLocation(true);
+        setTimeout(() => {
+          btnSatellite.innerHTML = '<span>🎯</span> Satellite GPS';
+        }, 3000);
+      });
+    }
+
+    if (btnNetwork) {
+      btnNetwork.addEventListener('click', async () => {
+        btnNetwork.innerText = '⌛ Detecting...';
+        await this.fetchIPLocation();
+        btnNetwork.innerHTML = '<span>🌐</span> Auto Network IP';
+      });
+    }
+
+    document.querySelectorAll('.btn-gps-preset').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const lat = btn.getAttribute('data-lat');
+        const lng = btn.getAttribute('data-lng');
+        const name = btn.getAttribute('data-name');
+        this.setManualLocation(lat, lng, name);
+      });
+    });
   },
 
   startCountdown(triggerType = 'manual') {

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'safeher-ai-v4.3';
+const CACHE_NAME = 'safeher-ai-v4.4';
 const STATIC_ASSETS = [
   '/',
   '/login',
