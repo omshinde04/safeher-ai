@@ -21,8 +21,8 @@ if os.path.exists(env_path):
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(24))
 
-# Fast2SMS Automated SMS Gateway API Key
-FAST2SMS_API_KEY = os.environ.get('FAST2SMS_API_KEY', 'LEt0L9MHA2ufWZ3KgcRTbWnNJiKGlNdXCQubhrAYQCpRmR6UaR0fDYRIi5P5400k47epMcy7jDU00hCX')
+# Fast2SMS Automated SMS Gateway API Key (Loaded securely from environment)
+FAST2SMS_API_KEY = os.environ.get('FAST2SMS_API_KEY')
 
 def send_automated_fast2sms(contact_phones, user_name, maps_link, battery, trigger_type, guardian_url):
     """Dispatches background SMS via Fast2SMS API directly to guardian phone SIM cards."""
