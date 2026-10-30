@@ -1,4 +1,4 @@
-const CACHE_NAME = 'safeher-ai-v1.0';
+const CACHE_NAME = 'safeher-ai-v3.0';
 const STATIC_ASSETS = [
   '/',
   '/login',
@@ -18,11 +18,11 @@ const STATIC_ASSETS = [
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
 ];
 
-// Install Event - Pre-cache Static Assets
+// Install Event - Pre-cache Static Assets & Take over immediately
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[SafeHer SW] Caching core static assets');
+      console.log('[SafeHer SW] Pre-caching core static assets');
       return cache.addAll(STATIC_ASSETS).catch((err) => {
         console.warn('[SafeHer SW] Non-fatal caching warning:', err);
       });
@@ -31,14 +31,14 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
-// Activate Event - Clean old caches
+// Activate Event - Clean old caches & claim clients immediately
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => {
       return Promise.all(
         keys.map((key) => {
           if (key !== CACHE_NAME) {
-            console.log('[SafeHer SW] Removing outdated cache:', key);
+            console.log('[SafeHer SW] Purging outdated cache:', key);
             return caches.delete(key);
           }
         })
@@ -48,7 +48,7 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch Event - Stale-while-revalidate for static, Network-first for APIs
+// Fetch Event - Network-first for APIs, JS, and HTML to guarantee latest code updates
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
@@ -60,19 +60,17 @@ self.addEventListener('fetch', (event) => {
   // Network-first for /api/ routes
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(
-      fetch(event.request).catch(() => {
-        return caches.match(event.request);
-      })
+      fetch(event.request).catch(() => caches.match(event.request))
     );
     return;
   }
 
-  // Cache-first / Stale-while-revalidate for UI assets
-  event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      const fetchPromise = fetch(event.request)
+  // Network-first for JavaScript, CSS, and HTML to avoid stale code
+  if (url.pathname.endsWith('.js') || url.pathname.endsWith('.css') || event.request.headers.get('accept')?.includes('text/html')) {
+    event.respondWith(
+      fetch(event.request)
         .then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+          if (networkResponse && networkResponse.status === 200) {
             const responseToCache = networkResponse.clone();
             caches.open(CACHE_NAME).then((cache) => {
               cache.put(event.request, responseToCache);
@@ -80,12 +78,25 @@ self.addEventListener('fetch', (event) => {
           }
           return networkResponse;
         })
-        .catch(() => {
-          // If offline and request is an HTML page navigation, return cached home
-          if (event.request.headers.get('accept')?.includes('text/html')) {
-            return caches.match('/');
+        .catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  // Stale-while-revalidate for images and fonts
+  event.respondWith(
+    caches.match(event.request).then((cachedResponse) => {
+      const fetchPromise = fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseToCache);
+            });
           }
-        });
+          return networkResponse;
+        })
+        .catch(() => cachedResponse);
 
       return cachedResponse || fetchPromise;
     })

@@ -27,14 +27,22 @@ app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(24))
 
 # SMTP Automated Email Dispatcher Configuration
+BREVO_API_KEY = os.environ.get('BREVO_API_KEY')
+RESEND_API_KEY = os.environ.get('RESEND_API_KEY')
 SMTP_EMAIL = os.environ.get('SMTP_EMAIL', 'omshinde0484@gmail.com')
 SMTP_PASSWORD = os.environ.get('SMTP_PASSWORD', 'pmjdcqoldnxaygqg')
 SMTP_SENDER_NAME = os.environ.get('SMTP_SENDER_NAME', 'SafeHer AI Emergency Alert')
 
 def send_emergency_emails(contact_emails, user_name, maps_link, battery, trigger_type, guardian_url, lat, lng):
-    """Sends high-priority, rich HTML emergency alert emails to all guardians via SMTP."""
-    if not SMTP_EMAIL or not SMTP_PASSWORD or not contact_emails:
-        return
+    """
+    Sends high-priority, rich HTML emergency alert emails to all guardians.
+    Supports Brevo HTTPS REST API (Port 443 - works on Render Free Tier),
+    Resend HTTPS REST API, and Gmail SMTP fallback.
+    Returns status dict: {'sent': bool, 'recipients': [...], 'message': '...'}
+    """
+    clean_recipients = [e.strip() for e in (contact_emails or []) if e and '@' in e]
+    if not clean_recipients:
+        return {'sent': False, 'recipients': [], 'message': 'No valid guardian email addresses found.'}
 
     clean_recipients = [e.strip() for e in contact_emails if e and '@' in e]
     if not clean_recipients:
@@ -127,28 +135,111 @@ Live Guardian Monitor: {guardian_url}
 National Emergency Helpline: 112 | Women Helpline: 1091
 """
 
-    try:
-        server = smtplib.SMTP('smtp.gmail.com', 587, timeout=10)
-        server.starttls()
-        server.login(SMTP_EMAIL, SMTP_PASSWORD)
+    # 1. Primary for Render: Brevo HTTPS REST API (Port 443 - completely unblocked on Render Free Tier)
+    if BREVO_API_KEY:
+        try:
+            url = "https://api.brevo.com/v3/smtp/email"
+            headers = {
+                "accept": "application/json",
+                "api-key": BREVO_API_KEY,
+                "content-type": "application/json"
+            }
+            payload = {
+                "sender": {"name": SMTP_SENDER_NAME, "email": SMTP_EMAIL},
+                "to": [{"email": r} for r in clean_recipients],
+                "subject": subject,
+                "htmlContent": html_content,
+                "textContent": plain_body,
+                "replyTo": {"email": "safeherai@gmail.com", "name": "SafeHer AI"}
+            }
+            resp = requests.post(url, headers=headers, json=payload, timeout=8)
+            if resp.status_code in (200, 201, 202):
+                print(f"[Email Dispatch - Brevo HTTPS] Successfully delivered SOS alert to {clean_recipients}")
+                return {
+                    'sent': True,
+                    'recipients': clean_recipients,
+                    'provider': 'Brevo HTTPS',
+                    'message': f'Delivered to {len(clean_recipients)} guardian(s) via secure HTTPS.'
+                }
+            else:
+                print(f"[Email Dispatch - Brevo Error] {resp.status_code}: {resp.text}")
+        except Exception as e:
+            print(f"[Email Dispatch - Brevo Exception] {e}")
 
-        for recipient in clean_recipients:
-            msg = MIMEMultipart('alternative')
-            msg['From'] = formataddr((SMTP_SENDER_NAME, SMTP_EMAIL))
-            msg['To'] = recipient
-            msg['Subject'] = subject
-            msg['Reply-To'] = 'safeherai@gmail.com'
-            msg['X-Priority'] = '1'
+    # 2. Secondary: Resend HTTPS REST API (Port 443)
+    if RESEND_API_KEY:
+        try:
+            url = "https://api.resend.com/emails"
+            headers = {
+                "Authorization": f"Bearer {RESEND_API_KEY}",
+                "Content-Type": "application/json"
+            }
+            payload = {
+                "from": f"{SMTP_SENDER_NAME} <onboarding@resend.dev>",
+                "to": clean_recipients,
+                "subject": subject,
+                "html": html_content,
+                "text": plain_body
+            }
+            resp = requests.post(url, headers=headers, json=payload, timeout=8)
+            if resp.status_code in (200, 201, 202):
+                print(f"[Email Dispatch - Resend HTTPS] Successfully delivered SOS alert to {clean_recipients}")
+                return {
+                    'sent': True,
+                    'recipients': clean_recipients,
+                    'provider': 'Resend HTTPS',
+                    'message': f'Delivered to {len(clean_recipients)} guardian(s).'
+                }
+        except Exception as e:
+            print(f"[Email Dispatch - Resend Exception] {e}")
 
-            msg.attach(MIMEText(plain_body, 'plain', 'utf-8'))
-            msg.attach(MIMEText(html_content, 'html', 'utf-8'))
+    # 3. Direct Gmail SMTP (Ports 587 / 465 - Works on local machine and paid hosts; blocked on Render Free Tier)
+    if SMTP_EMAIL and SMTP_PASSWORD:
+        try:
+            server = smtplib.SMTP('smtp.gmail.com', 587, timeout=6)
+            server.starttls()
+            server.login(SMTP_EMAIL, SMTP_PASSWORD)
 
-            server.sendmail(SMTP_EMAIL, [recipient], msg.as_string())
-            print(f"[Email Dispatch] Successfully delivered SOS alert to {recipient}")
+            for recipient in clean_recipients:
+                msg = MIMEMultipart('alternative')
+                msg['From'] = formataddr((SMTP_SENDER_NAME, SMTP_EMAIL))
+                msg['To'] = recipient
+                msg['Subject'] = subject
+                msg['Reply-To'] = 'safeherai@gmail.com'
+                msg['X-Priority'] = '1'
 
-        server.quit()
-    except Exception as e:
-        print(f"[Email Dispatch] Error delivering emergency email: {e}")
+                msg.attach(MIMEText(plain_body, 'plain', 'utf-8'))
+                msg.attach(MIMEText(html_content, 'html', 'utf-8'))
+
+                server.sendmail(SMTP_EMAIL, [recipient], msg.as_string())
+                print(f"[Email Dispatch - Gmail SMTP] Successfully delivered SOS alert to {recipient}")
+
+            server.quit()
+            return {
+                'sent': True,
+                'recipients': clean_recipients,
+                'provider': 'Gmail SMTP',
+                'message': f'Delivered to {len(clean_recipients)} guardian(s).'
+            }
+        except Exception as e:
+            err_msg = str(e)
+            print(f"[Email Dispatch - SMTP Error] {err_msg}")
+            if '101' in err_msg or 'Network is unreachable' in err_msg or 'timed out' in err_msg:
+                user_hint = "Render free tier blocks SMTP port 587. Add BREVO_API_KEY in Render to send via HTTPS."
+            else:
+                user_hint = f"SMTP error: {err_msg}"
+            return {
+                'sent': False,
+                'recipients': clean_recipients,
+                'provider': 'Gmail SMTP',
+                'message': user_hint
+            }
+
+    return {
+        'sent': False,
+        'recipients': clean_recipients,
+        'message': 'No email provider credentials configured.'
+    }
 
 # Initialize database on startup
 init_db()
@@ -559,15 +650,21 @@ def trigger_sos():
             'sms_url': sms_url
         })
 
-    # Trigger Automated Emergency Email Dispatch via Gmail SMTP to all guardians
+    # Automated Emergency Email Dispatch
     contact_emails = [c['email'] for c in contacts if c.get('email')]
+    email_status = {
+        'sent': False,
+        'recipients': contact_emails,
+        'message': 'No guardian emails registered.'
+    }
     if contact_emails:
         guardian_url = f"{request.host_url}guardian/{user['guardian_code']}"
-        threading.Thread(
-            target=send_emergency_emails,
-            args=(contact_emails, user['name'], maps_link, battery, trigger_type, guardian_url, lat, lng),
-            daemon=True
-        ).start()
+        try:
+            email_status = send_emergency_emails(
+                contact_emails, user['name'], maps_link, battery, trigger_type, guardian_url, lat, lng
+            )
+        except Exception as e:
+            email_status = {'sent': False, 'recipients': contact_emails, 'message': str(e)}
 
     return jsonify({
         'success': True,
@@ -576,6 +673,7 @@ def trigger_sos():
         'maps_link': maps_link,
         'sos_text': sos_msg,
         'contact_links': contact_links,
+        'email_status': email_status,
         'helplines': [
             {'name': 'National Emergency', 'number': '112'},
             {'name': 'Women Helpline', 'number': '1091'},
