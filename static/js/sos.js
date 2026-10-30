@@ -330,6 +330,11 @@ const SOS = {
       banner.style.cssText = 'background:#fef3c7; border:1px solid #fde68a; color:#92400e; padding:10px 12px; border-radius:10px; font-size:12px; font-weight:700; margin-bottom:12px; display:flex; align-items:center; gap:6px;';
       banner.innerHTML = '<span>⚡</span> <span>No internet connection. Tap <b>✉️ SMS</b> below to send direct emergency text to guardians without data!</span>';
       linksContainer.appendChild(banner);
+    } else if (data.auto_sms_dispatched) {
+      const banner = document.createElement('div');
+      banner.style.cssText = 'background:#ecfdf5; border:1px solid #86efac; color:#166534; padding:10px 12px; border-radius:10px; font-size:12px; font-weight:700; margin-bottom:12px; display:flex; align-items:center; gap:8px; box-shadow:0 1px 4px rgba(22,101,52,0.06);';
+      banner.innerHTML = `<span>🚀</span> <div><b>Automated Emergency SMS Sent!</b><div style="font-size:11px; font-weight:500; color:#15803d; margin-top:2px;">Fast2SMS has dispatched live distress alert &amp; GPS tracker directly to ${data.auto_sms_count} guardian SIM card(s).</div></div>`;
+      linksContainer.appendChild(banner);
     }
 
     if (data.contact_links && data.contact_links.length > 0) {
@@ -381,8 +386,6 @@ const SOS = {
     } catch (e) {
       this.activeEventId = null;
       console.warn('[SOS] Offline cancel noted.');
-    }
-  },
     }
   },
 

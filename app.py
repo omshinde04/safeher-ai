@@ -47,6 +47,40 @@ def log_event(category, message, level="INFO"):
         SYSTEM_LOGS.pop(0)
     print(f"[{now_str}] [{level.upper()}] [{category.upper()}] {message} (IP: {client_ip})", flush=True)
 
+# --- Fast2SMS Automated SMS Gateway Integration ---
+FAST2SMS_API_KEY = os.environ.get('FAST2SMS_API_KEY', 'LEt0L9MHA2ufWZ3KgcRTbWnNJiKGlNdXCQubhrAYQCpRmR6UaR0fDYRIi5P5400k47epMcy7jDU00hCX')
+
+def send_automated_fast2sms(contact_phones, user_name, maps_link, battery, trigger_type, guardian_url):
+    """Dispatches background SMS via Fast2SMS API directly to guardian phone SIM cards."""
+    if not FAST2SMS_API_KEY or not contact_phones:
+        return
+    try:
+        clean_numbers = []
+        for p in contact_phones:
+            digits = "".join([c for c in str(p) if c.isdigit()])
+            if len(digits) >= 10:
+                clean_numbers.append(digits[-10:])
+        if not clean_numbers:
+            return
+
+        sms_text = f"EMERGENCY SOS: {user_name} needs help! Loc: {maps_link} | Batt: {battery}% | Live: {guardian_url}"
+        url = "https://www.fast2sms.com/dev/bulkV2"
+        payload = {
+            "route": "q",
+            "message": sms_text[:160],
+            "language": "english",
+            "flash": 0,
+            "numbers": ",".join(clean_numbers)
+        }
+        headers = {
+            "authorization": FAST2SMS_API_KEY,
+            "Content-Type": "application/x-www-form-urlencoded"
+        }
+        resp = requests.post(url, data=payload, headers=headers, timeout=8)
+        log_event('FAST2SMS', f"✅ Dispatched SMS to {len(clean_numbers)} guardian(s) {clean_numbers} | Response: {resp.status_code} {resp.text}", level="ALERT")
+    except Exception as e:
+        log_event('FAST2SMS', f"❌ SMS auto-dispatch error: {e}", level="ERROR")
+
 @app.before_request
 def record_start_time():
     request._start_time = time.time()
@@ -461,7 +495,17 @@ def trigger_sos():
             'sms_url': sms_url
         })
 
-    log_event('SOS', f"🚨 SOS DISTRESS ACTIVATED! User #{user_id} ({user['name']}) | Mode: {trigger_type.upper()} | Battery: {battery}% | GPS: {lat},{lng} | Contacts: {len(contacts)}", level="ALERT")
+    # Trigger Automated Background SMS via Fast2SMS API to all guardians
+    guardian_phones = [c['phone'] for c in contacts if c.get('phone')]
+    guardian_url = f"{request.host_url}guardian/{user['guardian_code']}" if user and user.get('guardian_code') else request.host_url
+    if guardian_phones:
+        threading.Thread(
+            target=send_automated_fast2sms,
+            args=(guardian_phones, user['name'], maps_link, battery, trigger_type, guardian_url),
+            daemon=True
+        ).start()
+
+    log_event('SOS', f"🚨 SOS DISTRESS ACTIVATED! User #{user_id} ({user['name']}) | Mode: {trigger_type.upper()} | Battery: {battery}% | GPS: {lat},{lng} | Fast2SMS: {len(guardian_phones)} recipients", level="ALERT")
 
     return jsonify({
         'success': True,
@@ -469,6 +513,8 @@ def trigger_sos():
         'message': 'SOS alert triggered and registered successfully.',
         'maps_link': maps_link,
         'sos_text': sos_msg,
+        'auto_sms_dispatched': len(guardian_phones) > 0,
+        'auto_sms_count': len(guardian_phones),
         'contact_links': contact_links,
         'helplines': [
             {'name': 'National Emergency', 'number': '112'},
