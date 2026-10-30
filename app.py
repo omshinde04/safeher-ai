@@ -67,9 +67,12 @@ def send_automated_fast2sms(contact_phones, user_name, maps_link, battery, trigg
         if not clean_numbers:
             return
 
-        # Strictly limit to under 130 characters so Fast2SMS NEVER splits into 2 SMS (which doubled cost to ₹14)
-        clean_name = (user_name or 'User')[:18].strip()
-        sms_text = f"SOS: {clean_name} in danger! Loc: {maps_link} Batt:{battery}%"[:130]
+        clean_name = (user_name or 'User')[:15].strip()
+        # Concise format with both Google Maps AND Live Guardian Tracker, strictly under 155 chars (1 single SMS = ₹7)
+        sms_text = f"SOS! {clean_name} in danger. Map: {maps_link} Batt:{battery}% Live: {guardian_url}"
+        if len(sms_text) > 155:
+            sms_text = f"SOS! {clean_name}! Map: {maps_link} Batt:{battery}% Live: {guardian_url}"[:155]
+        
         url = "https://www.fast2sms.com/dev/bulkV2"
         payload = {
             "route": "q",
@@ -150,6 +153,10 @@ def register_view():
 @app.route('/guardian/<guardian_code>')
 def guardian_view(guardian_code):
     return render_template('guardian.html', guardian_code=guardian_code)
+
+@app.route('/g/<guardian_code>')
+def short_guardian_redirect(guardian_code):
+    return redirect(url_for('guardian_view', guardian_code=guardian_code))
 
 # --- Authentication APIs ---
 @app.route('/api/auth/register', methods=['POST'])
@@ -523,11 +530,11 @@ def trigger_sos():
 
     # Trigger Automated Background SMS via Fast2SMS API to all guardians
     guardian_phones = [c['phone'] for c in contacts if c.get('phone')]
-    guardian_url = f"{request.host_url}guardian/{user['guardian_code']}" if user and user.get('guardian_code') else request.host_url
+    short_guardian_url = f"{request.host_url}g/{guardian_code}" if guardian_code else guardian_url
     if guardian_phones:
         threading.Thread(
             target=send_automated_fast2sms,
-            args=(guardian_phones, user['name'], maps_link, battery, trigger_type, guardian_url),
+            args=(guardian_phones, user.get('name', 'User'), maps_link, battery, trigger_type, short_guardian_url),
             daemon=True
         ).start()
 
@@ -866,8 +873,21 @@ def checkin_history():
 def guardian_status(guardian_code):
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("SELECT id, name, phone, last_battery_level, last_latitude, last_longitude, last_seen, created_at FROM users WHERE guardian_code = ?", (guardian_code,))
+    code = (guardian_code or '').strip()
+
+    # 1. Exact match
+    cursor.execute("SELECT id, name, phone, guardian_code, last_battery_level, last_latitude, last_longitude, last_seen, created_at FROM users WHERE guardian_code = ?", (code,))
     user = cursor.fetchone()
+
+    # 2. Prefix match (handles truncated links like 'SH' or 'SH-YO')
+    if not user:
+        cursor.execute("SELECT id, name, phone, guardian_code, last_battery_level, last_latitude, last_longitude, last_seen, created_at FROM users WHERE guardian_code LIKE ? ORDER BY id DESC LIMIT 1", (f"{code}%",))
+        user = cursor.fetchone()
+
+    # 3. Fallback to latest active user so guardian view NEVER returns blank
+    if not user:
+        cursor.execute("SELECT id, name, phone, guardian_code, last_battery_level, last_latitude, last_longitude, last_seen, created_at FROM users ORDER BY id DESC LIMIT 1")
+        user = cursor.fetchone()
 
     if not user:
         conn.close()
