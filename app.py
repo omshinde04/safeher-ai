@@ -49,9 +49,13 @@ def log_event(category, message, level="INFO"):
 
 # --- Fast2SMS Automated SMS Gateway Integration ---
 FAST2SMS_API_KEY = os.environ.get('FAST2SMS_API_KEY', 'LEt0L9MHA2ufWZ3KgcRTbWnNJiKGlNdXCQubhrAYQCpRmR6UaR0fDYRIi5P5400k47epMcy7jDU00hCX')
+ENABLE_FAST2SMS = os.environ.get('ENABLE_FAST2SMS', 'false').lower() == 'true'
 
 def send_automated_fast2sms(contact_phones, user_name, maps_link, battery, trigger_type, guardian_url):
     """Dispatches background SMS via Fast2SMS API directly to guardian phone SIM cards."""
+    if not ENABLE_FAST2SMS:
+        log_event('FAST2SMS', 'ℹ️ Fast2SMS Quick SMS route (₹7/SMS) paused to protect user wallet balance. Direct 100% free cellular SMS active.', level="INFO")
+        return
     if not FAST2SMS_API_KEY or not contact_phones:
         return
     try:
@@ -513,7 +517,7 @@ def trigger_sos():
         'message': 'SOS alert triggered and registered successfully.',
         'maps_link': maps_link,
         'sos_text': sos_msg,
-        'auto_sms_dispatched': len(guardian_phones) > 0,
+        'auto_sms_dispatched': ENABLE_FAST2SMS and len(guardian_phones) > 0,
         'auto_sms_count': len(guardian_phones),
         'contact_links': contact_links,
         'helplines': [
