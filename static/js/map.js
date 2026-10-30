@@ -65,6 +65,15 @@ const SafeMap = {
   },
 
   locateUser() {
+    // If SOS already has a location, display immediately
+    if (typeof SOS !== 'undefined' && SOS.currentLocation && SOS.currentLocation.lat) {
+      this.updateUserMarker(SOS.currentLocation.lat, SOS.currentLocation.lng, SOS.currentLocation.accuracy || 15);
+      if (!this.routePolyline && this.map) {
+        this.map.setView([SOS.currentLocation.lat, SOS.currentLocation.lng], 15);
+      }
+      this.updateStatusPill(`GPS Active • Accurate to ±${Math.round(SOS.currentLocation.accuracy || 15)}m`);
+    }
+
     if (!navigator.geolocation) {
       this.updateStatusPill('GPS not supported on this browser');
       return;

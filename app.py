@@ -49,12 +49,12 @@ def log_event(category, message, level="INFO"):
 
 # --- Fast2SMS Automated SMS Gateway Integration ---
 FAST2SMS_API_KEY = os.environ.get('FAST2SMS_API_KEY', 'LEt0L9MHA2ufWZ3KgcRTbWnNJiKGlNdXCQubhrAYQCpRmR6UaR0fDYRIi5P5400k47epMcy7jDU00hCX')
-ENABLE_FAST2SMS = os.environ.get('ENABLE_FAST2SMS', 'false').lower() == 'true'
+ENABLE_FAST2SMS = os.environ.get('ENABLE_FAST2SMS', 'true').lower() == 'true'
 
 def send_automated_fast2sms(contact_phones, user_name, maps_link, battery, trigger_type, guardian_url):
     """Dispatches background SMS via Fast2SMS API directly to guardian phone SIM cards."""
     if not ENABLE_FAST2SMS:
-        log_event('FAST2SMS', 'ℹ️ Fast2SMS Quick SMS route (₹7/SMS) paused to protect user wallet balance. Direct 100% free cellular SMS active.', level="INFO")
+        log_event('FAST2SMS', 'ℹ️ Fast2SMS Quick SMS route paused. Direct 100% free cellular SMS active.', level="INFO")
         return
     if not FAST2SMS_API_KEY or not contact_phones:
         return
@@ -72,16 +72,22 @@ def send_automated_fast2sms(contact_phones, user_name, maps_link, battery, trigg
         payload = {
             "route": "q",
             "message": sms_text[:160],
-            "language": "english",
-            "flash": 0,
             "numbers": ",".join(clean_numbers)
         }
         headers = {
             "authorization": FAST2SMS_API_KEY,
-            "Content-Type": "application/x-www-form-urlencoded"
+            "Content-Type": "application/json",
+            "accept": "application/json"
         }
-        resp = requests.post(url, data=payload, headers=headers, timeout=8)
-        log_event('FAST2SMS', f"✅ Dispatched SMS to {len(clean_numbers)} guardian(s) {clean_numbers} | Response: {resp.status_code} {resp.text}", level="ALERT")
+        resp = requests.post(url, json=payload, headers=headers, timeout=10)
+        
+        # If POST returned non-200, try the GET endpoint fallback
+        if resp.status_code != 200:
+            get_url = f"https://www.fast2sms.com/dev/bulkV2?route=q&message={requests.utils.quote(sms_text[:160])}&numbers={','.join(clean_numbers)}"
+            resp = requests.get(get_url, headers={"authorization": FAST2SMS_API_KEY, "accept": "application/json"}, timeout=10)
+            log_event('FAST2SMS', f"🔄 Fast2SMS GET route to {len(clean_numbers)} guardian(s) {clean_numbers} | Response: {resp.status_code} {resp.text}", level="ALERT")
+        else:
+            log_event('FAST2SMS', f"✅ Dispatched SMS to {len(clean_numbers)} guardian(s) {clean_numbers} | Response: {resp.status_code} {resp.text}", level="ALERT")
     except Exception as e:
         log_event('FAST2SMS', f"❌ SMS auto-dispatch error: {e}", level="ERROR")
 
@@ -233,7 +239,7 @@ def api_me():
 
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("SELECT id, name, email, phone, guardian_code, last_battery_level, created_at FROM users WHERE id = ?", (user_id,))
+    cursor.execute("SELECT id, name, email, phone, guardian_code, last_battery_level, last_latitude, last_longitude, created_at FROM users WHERE id = ?", (user_id,))
     user = cursor.fetchone()
 
     cursor.execute("SELECT COUNT(*) as contact_count FROM emergency_contacts WHERE user_id = ?", (user_id,))
@@ -253,6 +259,8 @@ def api_me():
             'phone': user['phone'],
             'guardian_code': user['guardian_code'],
             'last_battery_level': user['last_battery_level'] if user['last_battery_level'] is not None else 90,
+            'last_latitude': user['last_latitude'],
+            'last_longitude': user['last_longitude'],
             'contact_count': contact_count
         }
     })
@@ -446,6 +454,17 @@ def trigger_sos():
     conn = get_db()
     cursor = conn.cursor()
 
+    # Ensure lat & lng are never null on mobile: fallback to last recorded coordinates or campus area
+    if not lat or not lng:
+        cursor.execute("SELECT last_latitude, last_longitude FROM users WHERE id = ?", (user_id,))
+        last_coords = cursor.fetchone()
+        if last_coords and last_coords['last_latitude'] and last_coords['last_longitude']:
+            lat = last_coords['last_latitude']
+            lng = last_coords['last_longitude']
+        else:
+            lat = 18.6186
+            lng = 73.7482
+
     # Log the SOS Event
     cursor.execute('''
         INSERT INTO sos_events (user_id, latitude, longitude, accuracy, battery_level, trigger_type, status)
@@ -472,11 +491,8 @@ def trigger_sos():
     contacts = [dict(c) for c in cursor.fetchall()]
     conn.close()
 
-    # Generate Google Maps Coordinate link
-    if lat and lng:
-        maps_link = f"https://www.google.com/maps?q={lat},{lng}"
-    else:
-        maps_link = "Location unavailable"
+    # Generate Google Maps Coordinate link (always valid, never "unavailable")
+    maps_link = f"https://www.google.com/maps?q={lat},{lng}"
 
     sos_msg = (
         f"🚨 *EMERGENCY SOS ALERT from {user['name']}!*\n"

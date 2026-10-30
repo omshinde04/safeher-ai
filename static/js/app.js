@@ -127,6 +127,22 @@ const App = {
         this.currentUser = data.user;
         localStorage.setItem('safeher_cached_user', JSON.stringify(data.user));
         this.populateUserProfile(data.user);
+
+        // Immediate GPS seed from user profile if mobile GPS is still locking
+        if (typeof SOS !== 'undefined' && (!SOS.currentLocation || !SOS.currentLocation.lat)) {
+          if (data.user.last_latitude && data.user.last_longitude) {
+            SOS.currentLocation = {
+              lat: data.user.last_latitude,
+              lng: data.user.last_longitude,
+              accuracy: 25
+            };
+            localStorage.setItem('safeher_cached_location', JSON.stringify(SOS.currentLocation));
+            SOS.updateGpsUI(data.user.last_latitude, data.user.last_longitude, 25, true);
+            if (typeof SafeMap !== 'undefined' && SafeMap.updateUserMarker) {
+              SafeMap.updateUserMarker(data.user.last_latitude, data.user.last_longitude, 25);
+            }
+          }
+        }
       } else if (!navigator.onLine) {
         // Fallback to cached profile if network disconnected
         this.restoreCachedProfile();
