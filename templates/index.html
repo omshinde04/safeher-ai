@@ -7,9 +7,9 @@
   
   <!-- PWA Meta Tags -->
   <link rel="manifest" href="/manifest.json">
-  <meta name="theme-color" content="#080b12">
+  <meta name="theme-color" content="#ffffff">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="SafeHer AI">
   <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
 
@@ -23,6 +23,23 @@
   <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
+
+  <!-- ====================================================================
+       MOBILE APP NATIVE SPLASH SCREEN
+       ==================================================================== -->
+  <div id="splash-screen" class="splash-screen">
+    <div class="splash-content">
+      <div class="splash-logo-pulse">
+        <div class="splash-icon">🛡️</div>
+      </div>
+      <h1 class="splash-title">SafeHer AI</h1>
+      <p class="splash-tagline">Intelligent Women Safety & Live Protection</p>
+      <div class="splash-loader">
+        <div class="splash-loader-bar"></div>
+      </div>
+      <span class="splash-footer">JSPM RSCOE Pune • SafeHer Academic Project</span>
+    </div>
+  </div>
 
   <!-- App Header -->
   <header class="app-header">
@@ -60,13 +77,13 @@
          TAB 1: HOME & EMERGENCY SOS
          ==================================================================== -->
     <section id="tab-home" class="view-tab active">
-      <div class="glass-card" style="padding: 14px 18px; margin-bottom: 20px;">
+      <div class="glass-card" style="padding: 14px 18px; margin-bottom: 16px;">
         <div style="display:flex; justify-content:space-between; align-items:center;">
           <div>
-            <span style="font-size:12px; color:#94a3b8;">Protected User</span>
-            <div id="user-display-name" style="font-size:16px; font-weight:800; font-family:var(--font-heading);">SafeHer User</div>
+            <span style="font-size:12px; color:#64748b; font-weight:600;">Protected User</span>
+            <div id="user-display-name" style="font-size:16px; font-weight:800; font-family:var(--font-heading); color:#0f172a;">SafeHer User</div>
           </div>
-          <div style="font-family:var(--font-mono); font-size:11px; background:rgba(0,242,254,0.1); color:#00f2fe; padding:4px 8px; border-radius:6px; border:1px solid rgba(0,242,254,0.3);">
+          <div style="font-family:var(--font-mono); font-size:11px; font-weight:700; background:var(--primary-indigo-light); color:var(--primary-indigo); padding:4px 10px; border-radius:var(--radius-full); border:1px solid #c7d2fe;">
             PWA LIVE
           </div>
         </div>
@@ -87,12 +104,12 @@
       </div>
 
       <!-- Live GPS Bar -->
-      <div class="gps-bar" style="margin-bottom: 16px;">
+      <div class="gps-bar">
         <div style="display:flex; align-items:center; gap:8px;">
           <span>📍</span>
           <span id="gps-coords-display">Detecting satellite GPS...</span>
         </div>
-        <span style="font-size:10px; color:#94a3b8;">SATELLITE</span>
+        <span style="font-size:10px; color:#64748b; font-weight:700;">SATELLITE</span>
       </div>
 
       <!-- Multi-Modal Sensor Toggles -->
@@ -130,7 +147,7 @@
       <div class="glass-card">
         <div class="card-title">
           <span>⚡ Emergency Helplines</span>
-          <span style="font-size:11px; color:#94a3b8; font-weight:normal;">Direct 1-Tap Dial</span>
+          <span style="font-size:11px; color:#64748b; font-weight:600;">Direct 1-Tap Dial</span>
         </div>
         <div class="helpline-grid">
           <a href="tel:112" class="helpline-btn">
@@ -153,20 +170,34 @@
          TAB 2: SAFE ROUTE & NAVIGATION MAP
          ==================================================================== -->
     <section id="tab-map" class="view-tab">
-      <div class="glass-card" style="padding:12px; margin-bottom:12px;">
-        <div class="card-title" style="margin-bottom:8px;">
+      <div class="glass-card" style="padding:12px; margin-bottom:10px;">
+        <div class="card-title" style="margin-bottom:6px;">
           <span>🗺️ Safe Walking Route Navigation</span>
+          <span style="font-size:11px; color:var(--primary-indigo); font-weight:700;">Live GPS Active</span>
         </div>
-        <p style="font-size:12px; color:#94a3b8;">Leaflet + OSRM route planner with real-time walking ETA and 1-tap WhatsApp trip sharing.</p>
+        <p style="font-size:12px; color:#94a3b8; margin:0 0 8px 0;">Leaflet + OSRM route planner with real-time walking ETA and 1-tap WhatsApp trip sharing.</p>
+        
+        <!-- Quick Safety Landmarks -->
+        <div class="map-preset-chips">
+          <button type="button" class="map-chip" data-dest="JSPM RSCOE Tathawade Pune">🏫 RSCOE Campus</button>
+          <button type="button" class="map-chip" data-dest="Wakad Police Station Pune">👮 Wakad Police</button>
+          <button type="button" class="map-chip" data-dest="Hinjawadi Phase 1 Pune">💼 Hinjawadi IT Park</button>
+          <button type="button" class="map-chip" data-dest="Pune Railway Station">🚉 Pune Station</button>
+        </div>
       </div>
 
-      <div class="map-wrapper">
+      <div class="map-wrapper" id="map-wrapper-box">
         <div class="map-controls-floating">
           <input type="text" id="map-destination-input" class="map-search-input" placeholder="Search destination (e.g. Pune Station, Hinjawadi)...">
           <button id="btn-search-dest" class="btn-icon-map" title="Find Safe Route">🔍</button>
           <button id="btn-recenter-map" class="btn-icon-map" title="Recenter GPS">🎯</button>
+          <button id="btn-toggle-fullscreen-map" class="btn-icon-map" title="Full Screen View">⛶</button>
         </div>
         <div id="leaflet-map"></div>
+        <div class="map-status-pill" id="map-status-pill">
+          <span class="live-pulse-dot"></span>
+          <span>Live GPS Ready</span>
+        </div>
       </div>
 
       <!-- Route Statistics Card -->
@@ -192,7 +223,7 @@
       <div class="glass-card" style="margin-bottom:12px;">
         <div class="card-title">
           <span>🤖 Multilingual AI Safety Assistant</span>
-          <span style="font-size:11px; color:#00f2fe; font-weight:normal;">Gemini Powered</span>
+          <span style="font-size:11px; color:var(--primary-indigo); font-weight:700;">Gemini Powered</span>
         </div>
         
         <!-- Language Selector -->
@@ -231,11 +262,11 @@
         <div class="card-title">
           <span>⏱️ Journey Safety Check-In</span>
         </div>
-        <p style="font-size:13px; color:#94a3b8; margin-bottom:14px;">
+        <p style="font-size:13px; color:#64748b; margin-bottom:14px; line-height:1.5;">
           Set a safety timer when walking or commuting. If you do not mark yourself "Safe" when the timer expires, SafeHer AI automatically triggers an SOS alert!
         </p>
 
-        <div style="font-size:12px; font-weight:700; color:#f8fafc; margin-bottom:8px;">Choose Journey Duration:</div>
+        <div style="font-size:12px; font-weight:700; color:#0f172a; margin-bottom:8px;">Choose Journey Duration:</div>
         <div class="duration-selector">
           <button class="btn-duration" data-mins="5">5m</button>
           <button class="btn-duration selected" data-mins="15">15m</button>
@@ -243,25 +274,25 @@
           <button class="btn-duration" data-mins="45">45m</button>
         </div>
 
-        <div style="margin-bottom:14px;">
-          <label style="font-size:12px; font-weight:700; color:#f8fafc; display:block; margin-bottom:6px;">Destination / Note:</label>
+        <div style="margin-bottom:16px;">
+          <label style="font-size:12px; font-weight:700; color:#0f172a; display:block; margin-bottom:6px;">Destination / Note:</label>
           <input type="text" id="checkin-destination" class="chat-input" style="width:100%;" placeholder="e.g. Walking home from college library...">
         </div>
 
-        <button id="btn-start-checkin" style="width:100%; padding:14px; background:linear-gradient(135deg, var(--neon-cyan), var(--neon-blue)); color:#080b12; font-family:var(--font-heading); font-size:15px; font-weight:800; border:none; border-radius:var(--radius-sm); cursor:pointer;">
+        <button id="btn-start-checkin" style="width:100%; padding:14px; background:var(--primary-gradient); color:#ffffff; font-family:var(--font-heading); font-size:15px; font-weight:800; border:none; border-radius:var(--radius-sm); cursor:pointer; box-shadow:0 4px 14px rgba(79,70,229,0.3);">
           Start Safety Timer 🚀
         </button>
       </div>
 
       <!-- Active Running Journey State -->
       <div id="active-checkin-display" class="glass-card active-checkin-display">
-        <div id="active-journey-destination" style="font-size:14px; color:#94a3b8; margin-bottom:14px;">Heading to destination...</div>
+        <div id="active-journey-destination" style="font-size:14px; color:#475569; font-weight:600; margin-bottom:14px;">Heading to destination...</div>
         <div class="timer-circular-badge">
           <div id="journey-timer-digits" class="timer-digits">15:00</div>
-          <span style="font-size:11px; color:#94a3b8; margin-top:4px;">REMAINING</span>
+          <span style="font-size:11px; color:#64748b; font-weight:700; margin-top:4px;">REMAINING</span>
         </div>
         <p style="font-size:12px; color:#64748b; margin-bottom:18px;">SafeHer AI is continuously monitoring. Confirm safety once you reach.</p>
-        <button id="btn-reached-safe" style="padding:14px 28px; background:#10b981; color:#fff; font-family:var(--font-heading); font-size:15px; font-weight:800; border:none; border-radius:var(--radius-md); cursor:pointer; box-shadow:0 0 15px rgba(16,185,129,0.3);">
+        <button id="btn-reached-safe" style="padding:14px 28px; background:#10b981; color:#fff; font-family:var(--font-heading); font-size:15px; font-weight:800; border:none; border-radius:var(--radius-md); cursor:pointer; box-shadow:0 4px 15px rgba(16,185,129,0.3);">
           ✓ I Reached Safely
         </button>
       </div>
@@ -271,14 +302,33 @@
          TAB 5: GUARDIANS & SETTINGS
          ==================================================================== -->
     <section id="tab-settings" class="view-tab">
+      <!-- User Profile Card -->
+      <div class="glass-card profile-card" style="margin-bottom:14px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+          <div style="display:flex; align-items:center; gap:12px;">
+            <div class="profile-avatar-circle" id="profile-avatar-circle">
+              <span id="profile-avatar-letter">S</span>
+            </div>
+            <div>
+              <div id="profile-name-val" style="font-family:var(--font-heading); font-size:16px; font-weight:800; color:#0f172a;">User Profile</div>
+              <div id="profile-email-val" style="font-size:12px; color:#64748b;">user@safeher.in</div>
+              <div id="profile-phone-val" style="font-size:12px; color:var(--primary-indigo); font-weight:700; margin-top:2px;">📞 --</div>
+            </div>
+          </div>
+          <button type="button" id="btn-open-edit-profile" class="btn-edit-profile-pill">
+            ✏️ Edit Profile
+          </button>
+        </div>
+      </div>
+
       <!-- Guardian Code Banner -->
       <div class="guardian-code-banner">
         <div>
-          <div style="font-size:11px; color:#94a3b8; text-transform:uppercase; letter-spacing:1px;">Your Guardian Code</div>
+          <div style="font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:1px; font-weight:700;">Your Guardian Code</div>
           <div id="guardian-code-display" class="code-val">SH-XXXX</div>
-          <div style="font-size:11px; color:#94a3b8; margin-top:4px;">Family can track your status live without logging in.</div>
+          <div style="font-size:12px; color:#64748b; margin-top:4px;">Family can track your status live without logging in.</div>
         </div>
-        <button id="btn-copy-guardian-link" style="background:var(--neon-cyan); color:#080b12; border:none; padding:8px 14px; border-radius:var(--radius-sm); font-size:12px; font-weight:800; cursor:pointer;">
+        <button id="btn-copy-guardian-link" style="background:var(--primary-indigo); color:#ffffff; border:none; padding:8px 16px; border-radius:var(--radius-sm); font-size:12px; font-weight:700; cursor:pointer; box-shadow:0 2px 8px rgba(79,70,229,0.25);">
           Copy Link
         </button>
       </div>
@@ -288,7 +338,7 @@
       <div class="glass-card">
         <div class="card-title">
           <span>👥 Trusted Guardians (<span id="contacts-count-badge">0 / 5</span>)</span>
-          <button id="btn-add-contact" style="background:rgba(0,242,254,0.15); color:#00f2fe; border:1px solid #00f2fe; padding:4px 10px; border-radius:6px; font-size:12px; font-weight:700; cursor:pointer;">
+          <button id="btn-add-contact" style="background:var(--primary-indigo-light); color:var(--primary-indigo); border:1px solid #c7d2fe; padding:5px 12px; border-radius:6px; font-size:12px; font-weight:700; cursor:pointer;">
             + Add
           </button>
         </div>
@@ -304,7 +354,7 @@
       </div>
 
       <!-- Logout Button -->
-      <button id="btn-logout" style="width:100%; padding:14px; background:rgba(255,0,85,0.1); border:1px solid var(--sos-red); color:var(--sos-red); font-weight:700; border-radius:var(--radius-sm); cursor:pointer; font-size:13px;">
+      <button id="btn-logout" style="width:100%; padding:14px; background:#fee2e2; border:1px solid #fca5a5; color:#dc2626; font-weight:700; border-radius:var(--radius-sm); cursor:pointer; font-size:13px; transition:var(--transition-smooth);">
         Log Out of SafeHer AI
       </button>
     </section>
@@ -391,21 +441,21 @@
        MODAL 3: ACTIVE SOS DISPATCH RESULT
        ==================================================================== -->
   <div id="sos-result-modal" class="countdown-overlay">
-    <div style="width:100%; max-width:400px; background:#101726; border:1px solid #ff0055; border-radius:16px; padding:20px; box-shadow:0 0 35px rgba(255,0,85,0.4); text-align:left;">
-      <div style="font-family:var(--font-heading); font-size:20px; font-weight:900; color:#ff0055; margin-bottom:6px;">
-        🚨 SOS ALERTS DISPATCHED!
+    <div class="modal-box" style="border:1.5px solid #ef4444;">
+      <div style="font-family:var(--font-heading); font-size:20px; font-weight:800; color:#dc2626; margin-bottom:6px;">
+        🚨 SOS Alerts Dispatched!
       </div>
-      <p style="font-size:12px; color:#94a3b8; margin-bottom:16px;">
+      <p style="font-size:13px; color:#475569; margin-bottom:16px;">
         Incident recorded. Tap below to immediately launch pre-formatted WhatsApp & SMS alerts to your guardians:
       </p>
 
       <div id="sos-contact-actions" style="margin-bottom:16px;"></div>
 
       <div style="display:flex; gap:8px;">
-        <button id="btn-close-sos-result" style="flex:1; padding:12px; background:rgba(255,255,255,0.1); color:#fff; border:none; border-radius:8px; font-weight:700; font-size:13px; cursor:pointer;">
+        <button id="btn-close-sos-result" style="flex:1; padding:12px; background:#f1f5f9; color:#334155; border:1px solid #cbd5e1; border-radius:8px; font-weight:700; font-size:13px; cursor:pointer;">
           Close & Cancel SOS
         </button>
-        <a href="tel:112" style="flex:1; padding:12px; background:#ff0055; color:#fff; text-align:center; text-decoration:none; border-radius:8px; font-weight:800; font-size:13px;">
+        <a href="tel:112" style="flex:1; padding:12px; background:#ef4444; color:#fff; text-align:center; text-decoration:none; border-radius:8px; font-weight:800; font-size:13px; box-shadow:0 2px 8px rgba(239,68,68,0.3);">
           Call 112 📞
         </a>
       </div>
@@ -416,36 +466,136 @@
        MODAL 4: ADD EMERGENCY CONTACT
        ==================================================================== -->
   <div id="add-contact-modal" class="countdown-overlay">
-    <div style="width:100%; max-width:380px; background:#101726; border:1px solid var(--border-glow); border-radius:16px; padding:20px; text-align:left;">
-      <div style="font-family:var(--font-heading); font-size:18px; font-weight:800; color:#fff; margin-bottom:14px;">
-        Add Trusted Contact
+    <div class="modal-box">
+      <div style="font-family:var(--font-heading); font-size:18px; font-weight:800; color:#0f172a; margin-bottom:14px;">
+        Add Trusted Guardian
       </div>
       <form id="form-add-contact">
-        <div style="margin-bottom:10px;">
-          <label style="font-size:11px; color:#94a3b8; display:block; margin-bottom:4px;">Full Name *</label>
+        <div style="margin-bottom:12px;">
+          <label style="font-size:12px; color:#475569; display:block; margin-bottom:4px; font-weight:600;">Full Name *</label>
           <input type="text" id="contact-name" class="chat-input" style="width:100%;" required placeholder="e.g. Papa / Sister">
         </div>
-        <div style="margin-bottom:10px;">
-          <label style="font-size:11px; color:#94a3b8; display:block; margin-bottom:4px;">Phone / WhatsApp *</label>
+        <div style="margin-bottom:12px;">
+          <label style="font-size:12px; color:#475569; display:block; margin-bottom:4px; font-weight:600;">Phone / WhatsApp *</label>
           <input type="tel" id="contact-phone" class="chat-input" style="width:100%;" required placeholder="e.g. 9876543210">
         </div>
-        <div style="margin-bottom:10px;">
-          <label style="font-size:11px; color:#94a3b8; display:block; margin-bottom:4px;">Email (Optional)</label>
+        <div style="margin-bottom:12px;">
+          <label style="font-size:12px; color:#475569; display:block; margin-bottom:4px; font-weight:600;">Email (Optional)</label>
           <input type="email" id="contact-email" class="chat-input" style="width:100%;" placeholder="e.g. guardian@gmail.com">
         </div>
-        <div style="margin-bottom:16px;">
-          <label style="font-size:11px; color:#94a3b8; display:block; margin-bottom:4px;">Relationship</label>
+        <div style="margin-bottom:18px;">
+          <label style="font-size:12px; color:#475569; display:block; margin-bottom:4px; font-weight:600;">Relationship</label>
           <select id="contact-relation" class="chat-input" style="width:100%;">
             <option value="Parent">Parent</option>
             <option value="Guardian">Guardian</option>
             <option value="Friend">Friend</option>
             <option value="Sibling">Sibling</option>
+            <option value="Spouse">Spouse</option>
             <option value="Other">Other</option>
           </select>
         </div>
         <div style="display:flex; gap:8px;">
-          <button type="button" id="btn-close-contact-modal" style="flex:1; padding:10px; background:transparent; border:1px solid var(--border-subtle); color:#fff; border-radius:8px; cursor:pointer;">Cancel</button>
-          <button type="submit" style="flex:1; padding:10px; background:var(--neon-cyan); border:none; color:#080b12; font-weight:800; border-radius:8px; cursor:pointer;">Save</button>
+          <button type="button" id="btn-close-contact-modal" style="flex:1; padding:11px; background:#f1f5f9; border:1px solid #cbd5e1; color:#334155; font-weight:700; border-radius:8px; cursor:pointer;">Cancel</button>
+          <button type="submit" style="flex:1; padding:11px; background:var(--primary-gradient); border:none; color:#ffffff; font-weight:800; border-radius:8px; cursor:pointer; box-shadow:0 2px 8px rgba(79,70,229,0.25);">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ====================================================================
+       MODAL 5: EDIT USER PROFILE
+       ==================================================================== -->
+  <div id="edit-profile-modal" class="countdown-overlay">
+    <div class="modal-box">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+        <div style="font-family:var(--font-heading); font-size:18px; font-weight:800; color:#0f172a;">
+          ✏️ Edit Profile Details
+        </div>
+        <button type="button" id="btn-close-profile-modal-x" style="background:none; border:none; color:#64748b; font-size:20px; cursor:pointer; line-height:1;">✕</button>
+      </div>
+
+      <form id="form-edit-profile">
+        <div style="margin-bottom:12px;">
+          <label style="font-size:12px; color:#475569; display:block; margin-bottom:4px; font-weight:600;">Full Name *</label>
+          <input type="text" id="edit-profile-name" class="chat-input" style="width:100%;" required placeholder="Your full name">
+        </div>
+
+        <div style="margin-bottom:12px;">
+          <label style="font-size:12px; color:#475569; display:block; margin-bottom:4px; font-weight:600;">Phone Number *</label>
+          <input type="tel" id="edit-profile-phone" class="chat-input" style="width:100%;" required placeholder="10-digit mobile number">
+        </div>
+
+        <div style="margin-bottom:12px;">
+          <label style="font-size:12px; color:#475569; display:block; margin-bottom:4px; font-weight:600;">Email (Account ID)</label>
+          <input type="email" id="edit-profile-email" class="chat-input" style="width:100%; opacity:0.7; cursor:not-allowed; background:#f8fafc;" readonly>
+        </div>
+
+        <!-- Optional Password Change -->
+        <div style="border-top:1px dashed #cbd5e1; margin-top:14px; padding-top:12px;">
+          <div style="font-size:12px; font-weight:700; color:#d97706; margin-bottom:8px;">🔒 Change Password (Optional)</div>
+          
+          <div style="margin-bottom:10px;">
+            <label style="font-size:12px; color:#475569; display:block; margin-bottom:4px; font-weight:600;">Current Password</label>
+            <input type="password" id="edit-profile-curr-pass" class="chat-input" style="width:100%;" placeholder="Enter only if updating password">
+          </div>
+
+          <div style="margin-bottom:14px;">
+            <label style="font-size:12px; color:#475569; display:block; margin-bottom:4px; font-weight:600;">New Password (Min 6 chars)</label>
+            <input type="password" id="edit-profile-new-pass" class="chat-input" style="width:100%;" placeholder="Leave empty to keep existing password">
+          </div>
+        </div>
+
+        <div id="profile-edit-msg" style="display:none; font-size:12px; padding:8px 10px; border-radius:6px; margin-bottom:12px;"></div>
+
+        <div style="display:flex; gap:8px;">
+          <button type="button" id="btn-close-profile-modal" style="flex:1; padding:11px; background:#f1f5f9; border:1px solid #cbd5e1; color:#334155; border-radius:8px; cursor:pointer; font-weight:600;">Cancel</button>
+          <button type="submit" id="btn-submit-profile-edit" style="flex:1; padding:11px; background:var(--primary-gradient); border:none; color:#ffffff; font-weight:800; border-radius:8px; cursor:pointer; box-shadow:0 2px 8px rgba(79,70,229,0.25);">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ====================================================================
+       MODAL 6: EDIT GUARDIAN CONTACT
+       ==================================================================== -->
+  <div id="edit-contact-modal" class="countdown-overlay">
+    <div class="modal-box">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+        <div style="font-family:var(--font-heading); font-size:18px; font-weight:800; color:#0f172a;">
+          ✏️ Edit Trusted Guardian
+        </div>
+        <button type="button" id="btn-close-edit-contact-x" style="background:none; border:none; color:#64748b; font-size:20px; cursor:pointer; line-height:1;">✕</button>
+      </div>
+
+      <form id="form-edit-contact">
+        <input type="hidden" id="edit-contact-id">
+        <div style="margin-bottom:12px;">
+          <label style="font-size:12px; color:#475569; display:block; margin-bottom:4px; font-weight:600;">Full Name *</label>
+          <input type="text" id="edit-contact-name" class="chat-input" style="width:100%;" required placeholder="e.g. Papa / Sister">
+        </div>
+        <div style="margin-bottom:12px;">
+          <label style="font-size:12px; color:#475569; display:block; margin-bottom:4px; font-weight:600;">Phone / WhatsApp *</label>
+          <input type="tel" id="edit-contact-phone" class="chat-input" style="width:100%;" required placeholder="e.g. 9876543210">
+        </div>
+        <div style="margin-bottom:12px;">
+          <label style="font-size:12px; color:#475569; display:block; margin-bottom:4px; font-weight:600;">Email (Optional)</label>
+          <input type="email" id="edit-contact-email" class="chat-input" style="width:100%;" placeholder="e.g. guardian@gmail.com">
+        </div>
+        <div style="margin-bottom:18px;">
+          <label style="font-size:12px; color:#475569; display:block; margin-bottom:4px; font-weight:600;">Relationship</label>
+          <select id="edit-contact-relation" class="chat-input" style="width:100%;">
+            <option value="Parent">Parent</option>
+            <option value="Guardian">Guardian</option>
+            <option value="Friend">Friend</option>
+            <option value="Sibling">Sibling</option>
+            <option value="Spouse">Spouse</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div id="contact-edit-msg" style="display:none; font-size:12px; padding:8px 10px; border-radius:6px; margin-bottom:12px;"></div>
+        <div style="display:flex; gap:8px;">
+          <button type="button" id="btn-close-edit-contact-modal" style="flex:1; padding:10px; background:#f1f5f9; border:1px solid #cbd5e1; color:#334155; border-radius:8px; cursor:pointer; font-weight:600;">Cancel</button>
+          <button type="submit" id="btn-submit-edit-contact" style="flex:1; padding:10px; background:var(--primary-gradient); border:none; color:#ffffff; font-weight:800; border-radius:8px; cursor:pointer; box-shadow:0 2px 8px rgba(79,70,229,0.25);">Save Changes</button>
         </div>
       </form>
     </div>

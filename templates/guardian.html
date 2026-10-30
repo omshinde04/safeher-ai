@@ -2,18 +2,18 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Guardian Safety Monitor - SafeHer AI</title>
   <link rel="manifest" href="/manifest.json">
-  <meta name="theme-color" content="#080b12">
+  <meta name="theme-color" content="#ffffff">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="/static/css/style.css">
   <style>
     .guardian-container {
-      max-width: 600px;
+      max-width: 580px;
       margin: 0 auto;
       padding: 16px;
     }
@@ -24,22 +24,23 @@
       align-items: center;
       justify-content: space-between;
       margin-bottom: 16px;
+      box-shadow: var(--shadow-card);
       transition: var(--transition-smooth);
     }
     .status-banner-live.safe {
-      background: rgba(16, 185, 129, 0.15);
-      border: 1px solid #10b981;
-      color: #10b981;
+      background: #ecfdf5;
+      border: 1px solid #a7f3d0;
+      color: #065f46;
     }
     .status-banner-live.danger {
-      background: rgba(255, 0, 85, 0.2);
-      border: 2px solid #ff0055;
-      color: #ff0055;
+      background: #fee2e2;
+      border: 2px solid #ef4444;
+      color: #dc2626;
       animation: pulseDanger 1.5s infinite;
     }
     @keyframes pulseDanger {
-      0%, 100% { box-shadow: 0 0 10px rgba(255,0,85,0.4); }
-      50% { box-shadow: 0 0 30px rgba(255,0,85,0.9); }
+      0%, 100% { box-shadow: 0 0 10px rgba(239, 68, 68, 0.4); }
+      50% { box-shadow: 0 0 25px rgba(239, 68, 68, 0.8); }
     }
   </style>
 </head>
@@ -47,7 +48,7 @@
 
   <header class="app-header">
     <div class="brand-wrapper">
-      <div class="brand-shield" style="background:linear-gradient(135deg, #10b981, #00f2fe);">👨‍👩‍👧</div>
+      <div class="brand-shield" style="background:linear-gradient(135deg, #10b981, #0ea5e9);">👨‍👩‍👧</div>
       <div class="brand-info">
         <h1>Guardian Safety View</h1>
         <div class="brand-status">
@@ -56,7 +57,7 @@
         </div>
       </div>
     </div>
-    <div style="font-family:var(--font-mono); font-size:12px; color:var(--neon-cyan); background:var(--bg-card); padding:6px 10px; border-radius:8px; border:1px solid var(--border-subtle);">
+    <div style="font-family:var(--font-mono); font-size:12px; font-weight:700; color:var(--primary-indigo); background:var(--primary-indigo-light); padding:6px 12px; border-radius:var(--radius-full); border:1px solid #c7d2fe;">
       CODE: <span id="display-guardian-code">{{ guardian_code }}</span>
     </div>
   </header>
@@ -66,7 +67,7 @@
     <!-- Live Status Banner -->
     <div id="guardian-status-banner" class="status-banner-live safe">
       <div>
-        <div style="font-size:11px; text-transform:uppercase; letter-spacing:1px; opacity:0.8;">Safety Status</div>
+        <div style="font-size:11px; text-transform:uppercase; letter-spacing:1px; opacity:0.85; font-weight:700;">Safety Status</div>
         <div id="guardian-status-title" style="font-family:var(--font-heading); font-size:20px; font-weight:800;">
           All Clear & Protected
         </div>
@@ -79,29 +80,29 @@
     <div class="glass-card">
       <div style="display:flex; justify-content:space-between; align-items:center;">
         <div>
-          <h2 id="user-name-title" style="font-family:var(--font-heading); font-size:18px; font-weight:800;">Loading...</h2>
-          <p id="user-phone-sub" style="font-size:13px; color:#94a3b8;">Connecting to telemetry...</p>
+          <h2 id="user-name-title" style="font-family:var(--font-heading); font-size:18px; font-weight:800; color:#0f172a;">Loading...</h2>
+          <p id="user-phone-sub" style="font-size:13px; color:#64748b; margin-top:2px;">Connecting to telemetry...</p>
         </div>
-        <a id="btn-call-user" href="#" style="background:#25d366; color:#080b12; padding:8px 14px; border-radius:8px; font-weight:800; font-size:12px; text-decoration:none; display:flex; align-items:center; gap:6px;">
+        <a id="btn-call-user" href="#" style="background:#10b981; color:#ffffff; padding:10px 16px; border-radius:var(--radius-sm); font-weight:800; font-size:12px; text-decoration:none; display:flex; align-items:center; gap:6px; box-shadow:0 2px 8px rgba(16,185,129,0.3);">
           📞 Call User
         </a>
       </div>
     </div>
 
     <!-- Live Map -->
-    <div class="glass-card" style="padding:12px;">
+    <div class="glass-card" style="padding:14px;">
       <div class="card-title" style="margin-bottom:8px;">
         <span>📍 Live GPS Tracking</span>
-        <span id="last-ping-time" style="font-family:var(--font-mono); font-size:11px; color:#94a3b8;">Just now</span>
+        <span id="last-ping-time" style="font-family:var(--font-mono); font-size:11px; color:#64748b;">Just now</span>
       </div>
-      <div style="height:320px; width:100%; border-radius:12px; overflow:hidden; border:1px solid var(--border-subtle);">
-        <div id="guardian-map" style="width:100%; height:100%; background:#111;"></div>
+      <div style="height:340px; width:100%; border-radius:12px; overflow:hidden; border:1px solid var(--border-subtle);">
+        <div id="guardian-map" style="width:100%; height:100%; background:#f1f5f9;"></div>
       </div>
-      <div style="margin-top:10px; display:flex; justify-content:space-between; align-items:center;">
-        <div style="font-family:var(--font-mono); font-size:12px; color:var(--neon-cyan);">
+      <div style="margin-top:12px; display:flex; justify-content:space-between; align-items:center;">
+        <div style="font-family:var(--font-mono); font-size:12px; font-weight:700; color:var(--primary-indigo);">
           Battery: <span id="guardian-battery-val">--%</span>
         </div>
-        <a id="btn-open-google-maps" href="#" target="_blank" style="color:var(--neon-cyan); font-size:12px; font-weight:700; text-decoration:none;">
+        <a id="btn-open-google-maps" href="#" target="_blank" style="color:var(--primary-indigo); font-size:12px; font-weight:700; text-decoration:none;">
           Open in Google Maps ↗
         </a>
       </div>
@@ -114,10 +115,10 @@
       </div>
       <div style="display:flex; justify-content:space-between; align-items:center;">
         <div>
-          <div style="font-weight:700; font-size:14px;" id="checkin-dest-val">Heading home</div>
-          <div style="font-size:12px; color:#94a3b8;">Expected arrival by: <span id="checkin-expires-val">--:--</span></div>
+          <div style="font-weight:700; font-size:14px; color:#0f172a;" id="checkin-dest-val">Heading home</div>
+          <div style="font-size:12px; color:#64748b; margin-top:2px;">Expected arrival by: <span id="checkin-expires-val" style="font-weight:700; color:#0f172a;">--:--</span></div>
         </div>
-        <div style="padding:4px 10px; background:rgba(0,242,254,0.1); color:var(--neon-cyan); border-radius:6px; font-size:11px; font-weight:700;">
+        <div style="padding:4px 10px; background:var(--primary-indigo-light); color:var(--primary-indigo); border:1px solid #c7d2fe; border-radius:6px; font-size:11px; font-weight:700;">
           MONITORED
         </div>
       </div>
@@ -129,10 +130,10 @@
         <span>🚨 Need Immediate Help?</span>
       </div>
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-        <a href="tel:112" style="background:#ff0055; color:#fff; padding:12px; text-align:center; text-decoration:none; border-radius:8px; font-weight:800; font-size:13px;">
+        <a href="tel:112" style="background:#ef4444; color:#fff; padding:12px; text-align:center; text-decoration:none; border-radius:8px; font-weight:800; font-size:13px; box-shadow:0 2px 8px rgba(239,68,68,0.25);">
           Dial 112 📞
         </a>
-        <a href="tel:1091" style="background:rgba(255,255,255,0.06); color:#fff; border:1px solid var(--border-subtle); padding:12px; text-align:center; text-decoration:none; border-radius:8px; font-weight:700; font-size:13px;">
+        <a href="tel:1091" style="background:#f1f5f9; color:#0f172a; border:1px solid #cbd5e1; padding:12px; text-align:center; text-decoration:none; border-radius:8px; font-weight:700; font-size:13px;">
           Women Helpline 1091
         </a>
       </div>
@@ -149,8 +150,9 @@
     function initGuardianMap(lat, lng) {
       if (!guardianMap) {
         guardianMap = L.map('guardian-map', { zoomControl: false }).setView([lat, lng], 15);
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-          attribution: '&copy; OSM &copy; CARTO'
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+          maxZoom: 19
         }).addTo(guardianMap);
         L.control.zoom({ position: 'bottomright' }).addTo(guardianMap);
 

@@ -2,13 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Create Account - SafeHer AI</title>
   <link rel="manifest" href="/manifest.json">
-  <meta name="theme-color" content="#080b12">
+  <meta name="theme-color" content="#ffffff">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/css/style.css">
   <style>
     .auth-page {
@@ -17,20 +17,20 @@
       align-items: center;
       justify-content: center;
       padding: 20px;
+      background-color: var(--bg-page);
     }
     .auth-card {
       width: 100%;
       max-width: 420px;
-      background: rgba(16, 23, 38, 0.85);
-      backdrop-filter: blur(25px);
+      background: #ffffff;
       border: 1px solid var(--border-subtle);
       border-radius: 20px;
-      padding: 32px 24px;
-      box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+      padding: 34px 26px;
+      box-shadow: var(--shadow-modal);
     }
     .auth-header {
       text-align: center;
-      margin-bottom: 20px;
+      margin-bottom: 22px;
     }
     .form-group {
       margin-bottom: 14px;
@@ -39,29 +39,32 @@
       display: block;
       font-size: 12px;
       font-weight: 600;
-      color: #94a3b8;
+      color: #475569;
       margin-bottom: 6px;
     }
     .auth-input {
       width: 100%;
       padding: 12px 16px;
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid var(--border-subtle);
+      background: #ffffff;
+      border: 1.5px solid #cbd5e1;
       border-radius: 10px;
-      color: #fff;
+      color: #0f172a;
       font-size: 14px;
       outline: none;
       transition: var(--transition-smooth);
     }
+    .auth-input::placeholder {
+      color: #94a3b8;
+    }
     .auth-input:focus {
-      border-color: var(--neon-cyan);
-      box-shadow: 0 0 12px rgba(0, 242, 254, 0.2);
+      border-color: var(--primary-indigo);
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
     }
     .btn-submit {
       width: 100%;
-      padding: 14px;
-      background: linear-gradient(135deg, var(--neon-cyan), var(--neon-blue));
-      color: #080b12;
+      padding: 13px;
+      background: var(--primary-gradient);
+      color: #ffffff;
       font-family: var(--font-heading);
       font-size: 15px;
       font-weight: 800;
@@ -69,6 +72,12 @@
       border-radius: 10px;
       cursor: pointer;
       margin-top: 8px;
+      box-shadow: 0 4px 14px rgba(79, 70, 229, 0.28);
+      transition: var(--transition-smooth);
+    }
+    .btn-submit:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 18px rgba(79, 70, 229, 0.35);
     }
   </style>
 </head>
@@ -76,11 +85,11 @@
 
   <div class="auth-card">
     <div class="auth-header">
-      <div style="width:48px; height:48px; border-radius:12px; background:linear-gradient(135deg, #ff0055, #7928ca); display:flex; align-items:center; justify-content:center; font-size:24px; margin:0 auto 12px auto; box-shadow:0 0 20px rgba(255,0,85,0.4);">
+      <div style="width:52px; height:52px; border-radius:14px; background:linear-gradient(135deg, #ff3366, #4f46e5); display:flex; align-items:center; justify-content:center; font-size:26px; margin:0 auto 12px auto; box-shadow:0 8px 20px rgba(79,70,229,0.3);">
         🛡️
       </div>
-      <h2 style="font-family:var(--font-heading); font-size:22px; font-weight:800; color:#fff;">Register on SafeHer AI</h2>
-      <p style="font-size:12px; color:#94a3b8; margin-top:4px;">Protect yourself & connect your guardians</p>
+      <h2 style="font-family:var(--font-heading); font-size:22px; font-weight:800; color:#0f172a; letter-spacing:-0.02em;">Register on SafeHer AI</h2>
+      <p style="font-size:13px; color:#64748b; margin-top:4px;">Protect yourself & connect your guardians</p>
     </div>
 
     <form id="form-register">
@@ -100,12 +109,12 @@
         <label>Password (min 6 characters) *</label>
         <input type="password" id="reg-password" class="auth-input" required placeholder="••••••••">
       </div>
-      <div id="reg-error" style="display:none; color:#ff4d4d; font-size:12px; margin-bottom:12px; text-align:center;"></div>
+      <div id="reg-error" style="display:none; color:#dc2626; background:#fee2e2; border:1px solid #fca5a5; padding:8px 12px; border-radius:8px; font-size:12px; margin-bottom:14px; text-align:center;"></div>
       <button type="submit" class="btn-submit">Create SafeHer Account</button>
     </form>
 
-    <div style="text-align:center; margin-top:20px; font-size:13px; color:#94a3b8;">
-      Already have an account? <a href="/login" style="color:var(--neon-cyan); font-weight:700; text-decoration:none;">Log In</a>
+    <div style="text-align:center; margin-top:20px; font-size:13px; color:#64748b;">
+      Already have an account? <a href="/login" style="color:var(--primary-indigo); font-weight:700; text-decoration:none;">Log In</a>
     </div>
   </div>
 

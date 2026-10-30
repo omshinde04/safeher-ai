@@ -176,6 +176,63 @@ def api_me():
         }
     })
 
+@app.route('/api/auth/profile', methods=['PUT'])
+def update_profile():
+    auth_err = require_auth()
+    if auth_err: return auth_err
+
+    user_id = get_current_user_id()
+    data = request.get_json() or {}
+    name = data.get('name', '').strip()
+    phone = data.get('phone', '').strip()
+    current_password = data.get('current_password', '').strip()
+    new_password = data.get('new_password', '').strip()
+
+    if not name:
+        return jsonify({'error': 'Name cannot be empty.'}), 400
+    if not phone:
+        return jsonify({'error': 'Phone number cannot be empty.'}), 400
+
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, name, email, phone, password_hash, guardian_code FROM users WHERE id = ?", (user_id,))
+    user = cursor.fetchone()
+
+    if not user:
+        conn.close()
+        return jsonify({'error': 'User not found.'}), 404
+
+    # Handle optional password update
+    if new_password:
+        if not current_password:
+            conn.close()
+            return jsonify({'error': 'Current password is required to change your password.'}), 400
+        if not check_password_hash(user['password_hash'], current_password):
+            conn.close()
+            return jsonify({'error': 'Current password is incorrect.'}), 400
+        if len(new_password) < 6:
+            conn.close()
+            return jsonify({'error': 'New password must be at least 6 characters.'}), 400
+
+        new_hash = generate_password_hash(new_password)
+        cursor.execute("UPDATE users SET name = ?, phone = ?, password_hash = ? WHERE id = ?", (name, phone, new_hash, user_id))
+    else:
+        cursor.execute("UPDATE users SET name = ?, phone = ? WHERE id = ?", (name, phone, user_id))
+
+    conn.commit()
+    session['user_name'] = name
+
+    # Fetch updated record
+    cursor.execute("SELECT id, name, email, phone, guardian_code FROM users WHERE id = ?", (user_id,))
+    updated_user = dict(cursor.fetchone())
+    conn.close()
+
+    return jsonify({
+        'success': True,
+        'message': 'Profile updated successfully!',
+        'user': updated_user
+    })
+
 @app.route('/api/auth/logout', methods=['POST'])
 def api_logout():
     session.clear()
@@ -242,6 +299,51 @@ def delete_contact(contact_id):
     conn.close()
 
     return jsonify({'success': True, 'message': 'Contact removed successfully.'})
+
+@app.route('/api/contacts/<int:contact_id>', methods=['PUT'])
+def update_contact(contact_id):
+    auth_err = require_auth()
+    if auth_err: return auth_err
+
+    user_id = get_current_user_id()
+    data = request.get_json() or {}
+    name = data.get('name', '').strip()
+    phone = data.get('phone', '').strip()
+    email = data.get('email', '').strip()
+    relation = data.get('relation', 'Guardian').strip()
+
+    if not name or not phone:
+        return jsonify({'error': 'Name and phone number are required.'}), 400
+
+    conn = get_db()
+    cursor = conn.cursor()
+
+    # Verify contact belongs to user
+    cursor.execute("SELECT id FROM emergency_contacts WHERE id = ? AND user_id = ?", (contact_id, user_id))
+    existing = cursor.fetchone()
+    if not existing:
+        conn.close()
+        return jsonify({'error': 'Emergency contact not found.'}), 404
+
+    cursor.execute('''
+        UPDATE emergency_contacts
+        SET name = ?, phone = ?, email = ?, relation = ?
+        WHERE id = ? AND user_id = ?
+    ''', (name, phone, email, relation, contact_id, user_id))
+    conn.commit()
+    conn.close()
+
+    return jsonify({
+        'success': True,
+        'message': 'Guardian contact updated successfully!',
+        'contact': {
+            'id': contact_id,
+            'name': name,
+            'phone': phone,
+            'email': email,
+            'relation': relation
+        }
+    })
 
 # --- SOS Alert & History APIs ---
 @app.route('/api/sos/trigger', methods=['POST'])

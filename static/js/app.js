@@ -7,14 +7,28 @@ const App = {
   currentUser: null,
 
   init() {
+    this.handleSplashScreen();
     this.registerServiceWorker();
     this.setupNavigation();
     this.setupPWAInstall();
     this.loadUserProfile();
     this.loadContacts();
     this.loadSOSHistory();
+    this.setupProfileHandlers();
     this.setupContactsHandlers();
     this.setupLogout();
+  },
+
+  handleSplashScreen() {
+    const splash = document.getElementById('splash-screen');
+    if (!splash) return;
+    // Realistic native app splash experience
+    setTimeout(() => {
+      splash.classList.add('fade-out');
+      setTimeout(() => {
+        splash.style.display = 'none';
+      }, 500);
+    }, 900);
   },
 
   // 1. Service Worker Registration
@@ -50,12 +64,9 @@ const App = {
           }
         });
 
-        // Trigger map invalidate if switching to map
-        if (targetTabId === 'tab-map' && typeof SafeMap !== 'undefined' && SafeMap.map) {
-          setTimeout(() => {
-            SafeMap.map.invalidateSize();
-            SafeMap.locateUser();
-          }, 100);
+        // Trigger map refresh if switching to map
+        if (targetTabId === 'tab-map' && typeof SafeMap !== 'undefined') {
+          SafeMap.refreshMap();
         }
 
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -104,16 +115,129 @@ const App = {
         const codeEl = document.getElementById('guardian-code-display');
         const linkInput = document.getElementById('guardian-link-input');
 
+        const profileName = document.getElementById('profile-name-val');
+        const profileEmail = document.getElementById('profile-email-val');
+        const profilePhone = document.getElementById('profile-phone-val');
+        const profileLetter = document.getElementById('profile-avatar-letter');
+
         if (nameEl) nameEl.innerText = data.user.name;
         if (codeEl) codeEl.innerText = data.user.guardian_code;
         if (linkInput) {
           linkInput.value = `${window.location.origin}/guardian/${data.user.guardian_code}`;
         }
+
+        if (profileName) profileName.innerText = data.user.name;
+        if (profileEmail) profileEmail.innerText = data.user.email;
+        if (profilePhone) profilePhone.innerText = data.user.phone ? `📞 +91 ${data.user.phone}` : '📞 Not provided';
+        if (profileLetter) profileLetter.innerText = (data.user.name || 'U').charAt(0).toUpperCase();
+
+        // Populate edit modal fields
+        const editName = document.getElementById('edit-profile-name');
+        const editPhone = document.getElementById('edit-profile-phone');
+        const editEmail = document.getElementById('edit-profile-email');
+        if (editName) editName.value = data.user.name || '';
+        if (editPhone) editPhone.value = data.user.phone || '';
+        if (editEmail) editEmail.value = data.user.email || '';
       } else {
         window.location.href = '/login';
       }
     } catch (e) {
       console.warn('[App] Could not fetch profile:', e);
+    }
+  },
+
+  // Setup Profile Edit Modal & API Handlers
+  setupProfileHandlers() {
+    const btnOpen = document.getElementById('btn-open-edit-profile');
+    const modal = document.getElementById('edit-profile-modal');
+    const btnClose = document.getElementById('btn-close-profile-modal');
+    const btnCloseX = document.getElementById('btn-close-profile-modal-x');
+    const form = document.getElementById('form-edit-profile');
+    const msgEl = document.getElementById('profile-edit-msg');
+    const submitBtn = document.getElementById('btn-submit-profile-edit');
+
+    const closeModal = () => {
+      if (modal) modal.style.display = 'none';
+      if (msgEl) { msgEl.style.display = 'none'; msgEl.innerText = ''; }
+      const currPass = document.getElementById('edit-profile-curr-pass');
+      const newPass = document.getElementById('edit-profile-new-pass');
+      if (currPass) currPass.value = '';
+      if (newPass) newPass.value = '';
+    };
+
+    if (btnOpen && modal) {
+      btnOpen.addEventListener('click', () => {
+        if (this.currentUser) {
+          const editName = document.getElementById('edit-profile-name');
+          const editPhone = document.getElementById('edit-profile-phone');
+          const editEmail = document.getElementById('edit-profile-email');
+          if (editName) editName.value = this.currentUser.name || '';
+          if (editPhone) editPhone.value = this.currentUser.phone || '';
+          if (editEmail) editEmail.value = this.currentUser.email || '';
+        }
+        modal.style.display = 'flex';
+      });
+    }
+
+    if (btnClose) btnClose.addEventListener('click', closeModal);
+    if (btnCloseX) btnCloseX.addEventListener('click', closeModal);
+
+    if (form) {
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const name = document.getElementById('edit-profile-name').value.trim();
+        const phone = document.getElementById('edit-profile-phone').value.trim();
+        const current_password = document.getElementById('edit-profile-curr-pass').value;
+        const new_password = document.getElementById('edit-profile-new-pass').value;
+
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.innerText = 'Saving...';
+        }
+
+        try {
+          const resp = await fetch('/api/auth/profile', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, phone, current_password, new_password })
+          });
+          const res = await resp.json();
+
+          if (resp.ok && res.success) {
+            if (msgEl) {
+              msgEl.style.display = 'block';
+              msgEl.style.background = 'rgba(16, 185, 129, 0.2)';
+              msgEl.style.color = '#10b981';
+              msgEl.style.border = '1px solid #10b981';
+              msgEl.innerText = '✓ Profile updated successfully!';
+            }
+            this.currentUser = res.user;
+            await this.loadUserProfile();
+            setTimeout(() => { closeModal(); }, 800);
+          } else {
+            if (msgEl) {
+              msgEl.style.display = 'block';
+              msgEl.style.background = 'rgba(255, 0, 85, 0.2)';
+              msgEl.style.color = '#ff0055';
+              msgEl.style.border = '1px solid #ff0055';
+              msgEl.innerText = res.error || 'Failed to update profile.';
+            }
+          }
+        } catch (err) {
+          if (msgEl) {
+            msgEl.style.display = 'block';
+            msgEl.style.background = 'rgba(255, 0, 85, 0.2)';
+            msgEl.style.color = '#ff0055';
+            msgEl.style.border = '1px solid #ff0055';
+            msgEl.innerText = 'Network error while updating profile.';
+          }
+        } finally {
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerText = 'Save Changes';
+          }
+        }
+      });
     }
   },
 
@@ -136,12 +260,36 @@ const App = {
           card.className = 'contact-card';
           card.innerHTML = `
             <div class="contact-meta">
-              <h4>${c.name} <span style="font-size:11px; color:#00f2fe; font-weight:normal;">(${c.relation})</span></h4>
+              <h4>${c.name} <span class="relation-badge">${c.relation}</span></h4>
               <p>📞 ${c.phone} ${c.email ? '• ✉️ ' + c.email : ''}</p>
             </div>
-            <button class="btn-remove-contact" data-id="${c.id}" title="Remove Contact">🗑️</button>
+            <div style="display:flex; gap:6px; align-items:center;">
+              <button class="btn-edit-contact" data-id="${c.id}" data-name="${encodeURIComponent(c.name)}" data-phone="${c.phone}" data-email="${c.email || ''}" data-relation="${c.relation}" title="Edit Guardian">✏️ Edit</button>
+              <button class="btn-remove-contact" data-id="${c.id}" title="Remove Contact">🗑️</button>
+            </div>
           `;
           container.appendChild(card);
+        });
+
+        // Bind Edit buttons
+        container.querySelectorAll('.btn-edit-contact').forEach((btn) => {
+          btn.addEventListener('click', (e) => {
+            const el = e.currentTarget;
+            const cid = el.getAttribute('data-id');
+            const name = decodeURIComponent(el.getAttribute('data-name') || '');
+            const phone = el.getAttribute('data-phone') || '';
+            const email = el.getAttribute('data-email') || '';
+            const relation = el.getAttribute('data-relation') || 'Guardian';
+
+            document.getElementById('edit-contact-id').value = cid;
+            document.getElementById('edit-contact-name').value = name;
+            document.getElementById('edit-contact-phone').value = phone;
+            document.getElementById('edit-contact-email').value = email;
+            document.getElementById('edit-contact-relation').value = relation;
+
+            const modal = document.getElementById('edit-contact-modal');
+            if (modal) modal.style.display = 'flex';
+          });
         });
 
         // Bind delete buttons
@@ -167,6 +315,7 @@ const App = {
   },
 
   setupContactsHandlers() {
+    // Add Contact
     const btnAdd = document.getElementById('btn-add-contact');
     const modal = document.getElementById('add-contact-modal');
     const btnCloseModal = document.getElementById('btn-close-contact-modal');
@@ -208,6 +357,71 @@ const App = {
       });
     }
 
+    // Edit Contact
+    const editModal = document.getElementById('edit-contact-modal');
+    const btnCloseEditModal = document.getElementById('btn-close-edit-contact-modal');
+    const btnCloseEditX = document.getElementById('btn-close-edit-contact-x');
+    const editForm = document.getElementById('form-edit-contact');
+    const editMsgEl = document.getElementById('contact-edit-msg');
+    const editSubmitBtn = document.getElementById('btn-submit-edit-contact');
+
+    const closeEditContactModal = () => {
+      if (editModal) editModal.style.display = 'none';
+      if (editMsgEl) { editMsgEl.style.display = 'none'; editMsgEl.innerText = ''; }
+    };
+
+    if (btnCloseEditModal) btnCloseEditModal.addEventListener('click', closeEditContactModal);
+    if (btnCloseEditX) btnCloseEditX.addEventListener('click', closeEditContactModal);
+
+    if (editForm) {
+      editForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const cid = document.getElementById('edit-contact-id').value;
+        const name = document.getElementById('edit-contact-name').value.trim();
+        const phone = document.getElementById('edit-contact-phone').value.trim();
+        const email = document.getElementById('edit-contact-email').value.trim();
+        const relation = document.getElementById('edit-contact-relation').value.trim();
+
+        if (editSubmitBtn) {
+          editSubmitBtn.disabled = true;
+          editSubmitBtn.innerText = 'Saving...';
+        }
+
+        try {
+          const resp = await fetch(`/api/contacts/${cid}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, phone, email, relation })
+          });
+          const res = await resp.json();
+
+          if (resp.ok && res.success) {
+            closeEditContactModal();
+            this.loadContacts();
+          } else {
+            if (editMsgEl) {
+              editMsgEl.style.display = 'block';
+              editMsgEl.style.background = 'rgba(255, 0, 85, 0.2)';
+              editMsgEl.style.color = '#ff0055';
+              editMsgEl.innerText = res.error || 'Failed to update contact';
+            }
+          }
+        } catch (err) {
+          if (editMsgEl) {
+            editMsgEl.style.display = 'block';
+            editMsgEl.style.background = 'rgba(255, 0, 85, 0.2)';
+            editMsgEl.style.color = '#ff0055';
+            editMsgEl.innerText = 'Network error while updating contact.';
+          }
+        } finally {
+          if (editSubmitBtn) {
+            editSubmitBtn.disabled = false;
+            editSubmitBtn.innerText = 'Save Changes';
+          }
+        }
+      });
+    }
+
     // Copy Guardian link
     const btnCopy = document.getElementById('btn-copy-guardian-link');
     const linkInput = document.getElementById('guardian-link-input');
@@ -234,17 +448,17 @@ const App = {
       if (data.history && data.history.length > 0) {
         data.history.forEach((h) => {
           const item = document.createElement('div');
-          item.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:10px 12px; background:rgba(255,255,255,0.03); border-radius:8px; margin-bottom:8px; font-size:12px;';
+          item.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; margin-bottom:8px; font-size:12px;';
           item.innerHTML = `
             <div>
-              <span style="font-weight:700; color:#ff0055;">🚨 ${h.trigger_type.toUpperCase()}</span>
-              <div style="color:#64748b; font-size:11px;">${h.timestamp}</div>
+              <span style="font-weight:700; color:#dc2626;">🚨 ${h.trigger_type.toUpperCase()}</span>
+              <div style="color:#64748b; font-size:11px; margin-top:2px;">${h.timestamp}</div>
             </div>
             <div style="text-align:right;">
-              <span style="padding:2px 8px; border-radius:12px; font-size:10px; font-weight:700; background:${h.status === 'active' ? '#ff0055' : '#10b981'}; color:#fff;">
+              <span style="padding:3px 9px; border-radius:12px; font-size:10px; font-weight:700; background:${h.status === 'active' ? '#ef4444' : '#10b981'}; color:#ffffff;">
                 ${h.status.toUpperCase()}
               </span>
-              <div style="font-family:monospace; color:#94a3b8; font-size:11px; margin-top:2px;">Battery: ${h.battery_level}%</div>
+              <div style="font-family:var(--font-mono); color:#64748b; font-size:11px; margin-top:3px; font-weight:600;">Battery: ${h.battery_level}%</div>
             </div>
           `;
           listEl.appendChild(item);

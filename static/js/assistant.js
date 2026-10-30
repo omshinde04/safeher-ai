@@ -279,7 +279,7 @@ const AIAssistant = {
       ${actionButtonsHtml}
       <div style="font-size:10px; color:#64748b; margin-top:6px; font-weight:600; display:flex; justify-content:space-between; align-items:center;">
         <span>⚡ ${source}</span>
-        <span style="font-size:9px; color:#00f2fe; text-transform:uppercase;">${this.currentLanguage}</span>
+        <span style="font-size:9px; color:#4f46e5; font-weight:700; text-transform:uppercase;">${this.currentLanguage}</span>
       </div>
     `;
 
