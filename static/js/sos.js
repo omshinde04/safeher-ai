@@ -179,37 +179,6 @@ const SOS = {
       battSpan.innerText = `🔋 Battery: ${bVal}%`;
     }
 
-    // Dynamic Email Status Feedback
-    const emailBanner = document.getElementById('sos-email-status-banner');
-    if (emailBanner) {
-      if (data.email_status && data.email_status.sent) {
-        const recipients = (data.email_status.recipients || []).join(', ');
-        emailBanner.innerHTML = `
-          <div style="font-size:12px; color:#15803d; background:#f0fdf4; border:1.5px solid #86efac; border-radius:10px; padding:10px 12px; margin-bottom:12px; display:flex; align-items:flex-start; gap:8px;">
-            <span style="font-size:16px; line-height:1;">✅</span>
-            <div style="flex:1;">
-              <div style="font-weight:800; font-size:12px; color:#166534;">Emergency Alert Email Sent!</div>
-              <div style="font-size:11px; font-weight:600; color:#15803d; margin-top:2px;">Delivered to: ${recipients}</div>
-            </div>
-          </div>
-        `;
-      } else if (data.email_status && !data.email_status.sent) {
-        const msg = data.email_status.message || 'Render free tier blocks SMTP port 587. Please tap WhatsApp or SMS below.';
-        emailBanner.innerHTML = `
-          <div style="font-size:12px; color:#92400e; background:#fffbeb; border:1.5px solid #fde68a; border-radius:10px; padding:10px 12px; margin-bottom:12px; display:flex; align-items:flex-start; gap:8px;">
-            <span style="font-size:16px; line-height:1;">⚠️</span>
-            <div style="flex:1;">
-              <div style="font-weight:800; font-size:12px; color:#92400e;">Email Dispatch Notice</div>
-              <div style="font-size:11px; font-weight:500; color:#b45309; margin-top:2px;">${msg}</div>
-              <div style="font-size:11px; font-weight:700; color:#78350f; margin-top:4px;">👉 Tap green WhatsApp or SMS below to alert immediately!</div>
-            </div>
-          </div>
-        `;
-      } else {
-        emailBanner.innerHTML = '';
-      }
-    }
-
     const linksContainer = document.getElementById('sos-contact-actions');
     linksContainer.innerHTML = '';
 

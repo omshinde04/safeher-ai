@@ -344,11 +344,6 @@ const App = {
         const email = document.getElementById('contact-email').value.trim();
         const relation = document.getElementById('contact-relation').value.trim();
 
-        if (!email || !email.includes('@') || !email.includes('.')) {
-          alert('Please provide a valid guardian email address. It is strictly required for instant emergency alerts.');
-          return;
-        }
-
         try {
           const resp = await fetch('/api/contacts', {
             method: 'POST',
@@ -393,16 +388,6 @@ const App = {
         const phone = document.getElementById('edit-contact-phone').value.trim();
         const email = document.getElementById('edit-contact-email').value.trim();
         const relation = document.getElementById('edit-contact-relation').value.trim();
-
-        if (!email || !email.includes('@') || !email.includes('.')) {
-          if (editMsgEl) {
-            editMsgEl.style.display = 'block';
-            editMsgEl.style.background = 'rgba(255, 0, 85, 0.2)';
-            editMsgEl.style.color = '#ff0055';
-            editMsgEl.innerText = 'A valid guardian email address is strictly required.';
-          }
-          return;
-        }
 
         if (editSubmitBtn) {
           editSubmitBtn.disabled = true;
