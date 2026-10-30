@@ -67,11 +67,13 @@ def send_automated_fast2sms(contact_phones, user_name, maps_link, battery, trigg
         if not clean_numbers:
             return
 
-        sms_text = f"EMERGENCY SOS: {user_name} needs help! Loc: {maps_link} | Batt: {battery}% | Live: {guardian_url}"
+        # Strictly limit to under 130 characters so Fast2SMS NEVER splits into 2 SMS (which doubled cost to ₹14)
+        clean_name = (user_name or 'User')[:18].strip()
+        sms_text = f"SOS: {clean_name} in danger! Loc: {maps_link} Batt:{battery}%"[:130]
         url = "https://www.fast2sms.com/dev/bulkV2"
         payload = {
             "route": "q",
-            "message": sms_text[:160],
+            "message": sms_text,
             "numbers": ",".join(clean_numbers)
         }
         headers = {
