@@ -2,6 +2,7 @@ import os
 import secrets
 import datetime
 import requests
+import threading
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, send_from_directory
 from werkzeug.security import generate_password_hash, check_password_hash
 from database import get_db, init_db
@@ -19,6 +20,40 @@ if os.path.exists(env_path):
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(24))
+
+# Fast2SMS Automated SMS Gateway API Key
+FAST2SMS_API_KEY = os.environ.get('FAST2SMS_API_KEY', 'LEt0L9MHA2ufWZ3KgcRTbWnNJiKGlNdXCQubhrAYQCpRmR6UaR0fDYRIi5P5400k47epMcy7jDU00hCX')
+
+def send_automated_fast2sms(contact_phones, user_name, maps_link, battery, trigger_type, guardian_url):
+    """Dispatches background SMS via Fast2SMS API directly to guardian phone SIM cards."""
+    if not FAST2SMS_API_KEY or not contact_phones:
+        return
+    try:
+        clean_numbers = []
+        for p in contact_phones:
+            digits = "".join([c for c in str(p) if c.isdigit()])
+            if len(digits) >= 10:
+                clean_numbers.append(digits[-10:])
+        if not clean_numbers:
+            return
+
+        sms_text = f"EMERGENCY SOS: {user_name} needs help! Loc: {maps_link} | Batt: {battery}% | Live Tracker: {guardian_url}"
+        url = "https://www.fast2sms.com/dev/bulkV2"
+        payload = {
+            "route": "q",
+            "message": sms_text[:160],
+            "language": "english",
+            "flash": 0,
+            "numbers": ",".join(clean_numbers)
+        }
+        headers = {
+            "authorization": FAST2SMS_API_KEY,
+            "Content-Type": "application/x-www-form-urlencoded"
+        }
+        resp = requests.post(url, data=payload, headers=headers, timeout=6)
+        print(f"[Fast2SMS] Background dispatch to {clean_numbers}: status {resp.status_code} - {resp.text}")
+    except Exception as e:
+        print(f"[Fast2SMS] Auto-dispatch error: {e}")
 
 # Initialize database on startup
 init_db()
@@ -422,6 +457,16 @@ def trigger_sos():
             'whatsapp_url': wa_url,
             'sms_url': sms_url
         })
+
+    # Trigger Automated Background SMS via Fast2SMS API to all guardians
+    guardian_phones = [c['phone'] for c in contacts if c.get('phone')]
+    if guardian_phones:
+        guardian_url = f"{request.host_url}guardian/{user['guardian_code']}"
+        threading.Thread(
+            target=send_automated_fast2sms,
+            args=(guardian_phones, user['name'], maps_link, battery, trigger_type, guardian_url),
+            daemon=True
+        ).start()
 
     return jsonify({
         'success': True,

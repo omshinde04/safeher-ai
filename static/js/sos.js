@@ -158,6 +158,16 @@ const SOS = {
         this.activeEventId = data.event_id;
         data.dispatched_battery = batteryLevel;
         this.displayActiveSOSModal(data);
+
+        // Automatic WhatsApp Auto-Launch: Immediately opens primary guardian WhatsApp chat
+        if (data.contact_links && data.contact_links.length > 0) {
+          const primaryWA = data.contact_links[0].whatsapp_url;
+          if (primaryWA) {
+            setTimeout(() => {
+              window.location.href = primaryWA;
+            }, 500);
+          }
+        }
       } else {
         alert(data.error || 'Failed to trigger SOS');
       }
