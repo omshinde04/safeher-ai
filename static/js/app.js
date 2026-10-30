@@ -11,6 +11,7 @@ const App = {
     this.registerServiceWorker();
     this.setupNavigation();
     this.setupPWAInstall();
+    this.setupNetworkStatusListener();
     this.loadUserProfile();
     this.loadContacts();
     this.loadSOSHistory();
@@ -103,7 +104,20 @@ const App = {
     });
   },
 
-  // 4. Load Current User Profile
+  // 4. Offline Network Detection Indicator
+  setupNetworkStatusListener() {
+    const banner = document.getElementById('network-status-banner');
+    const update = () => {
+      if (banner) {
+        banner.style.display = navigator.onLine ? 'none' : 'flex';
+      }
+    };
+    window.addEventListener('online', update);
+    window.addEventListener('offline', update);
+    update();
+  },
+
+  // 5. Load Current User Profile
   async loadUserProfile() {
     try {
       const resp = await fetch('/api/auth/me');
@@ -111,45 +125,65 @@ const App = {
 
       if (data.authenticated && data.user) {
         this.currentUser = data.user;
-        const nameEl = document.getElementById('user-display-name');
-        const codeEl = document.getElementById('guardian-code-display');
-        const linkInput = document.getElementById('guardian-link-input');
-
-        const profileName = document.getElementById('profile-name-val');
-        const profileEmail = document.getElementById('profile-email-val');
-        const profilePhone = document.getElementById('profile-phone-val');
-        const profileLetter = document.getElementById('profile-avatar-letter');
-
-        if (nameEl) nameEl.innerText = data.user.name;
-        if (codeEl) codeEl.innerText = data.user.guardian_code;
-        if (linkInput) {
-          linkInput.value = `${window.location.origin}/guardian/${data.user.guardian_code}`;
-        }
-
-        if (profileName) profileName.innerText = data.user.name;
-        if (profileEmail) profileEmail.innerText = data.user.email;
-        if (profilePhone) profilePhone.innerText = data.user.phone ? `📞 +91 ${data.user.phone}` : '📞 Not provided';
-        if (profileLetter) profileLetter.innerText = (data.user.name || 'U').charAt(0).toUpperCase();
-
-        // Populate edit modal fields
-        const editName = document.getElementById('edit-profile-name');
-        const editPhone = document.getElementById('edit-profile-phone');
-        const editEmail = document.getElementById('edit-profile-email');
-        if (editName) editName.value = data.user.name || '';
-        if (editPhone) editPhone.value = data.user.phone || '';
-        if (editEmail) editEmail.value = data.user.email || '';
-
-        // Sync user battery state if not using hardware API
-        if (data.user.last_battery_level && typeof SafeHerBattery !== 'undefined' && !SafeHerBattery.hasHardwareAPI) {
-          if (!localStorage.getItem('safeher_device_battery')) {
-            SafeHerBattery.setLevel(data.user.last_battery_level);
-          }
-        }
+        localStorage.setItem('safeher_cached_user', JSON.stringify(data.user));
+        this.populateUserProfile(data.user);
+      } else if (!navigator.onLine) {
+        // Fallback to cached profile if network disconnected
+        this.restoreCachedProfile();
       } else {
         window.location.href = '/login';
       }
     } catch (e) {
-      console.warn('[App] Could not fetch profile:', e);
+      console.warn('[App] Could not fetch profile (offline fallback):', e);
+      this.restoreCachedProfile();
+    }
+  },
+
+  restoreCachedProfile() {
+    const cached = localStorage.getItem('safeher_cached_user');
+    if (cached) {
+      try {
+        const user = JSON.parse(cached);
+        this.currentUser = user;
+        this.populateUserProfile(user);
+      } catch (err) {}
+    }
+  },
+
+  populateUserProfile(user) {
+    const nameEl = document.getElementById('user-display-name');
+    const codeEl = document.getElementById('guardian-code-display');
+    const linkInput = document.getElementById('guardian-link-input');
+
+    const profileName = document.getElementById('profile-name-val');
+    const profileEmail = document.getElementById('profile-email-val');
+    const profilePhone = document.getElementById('profile-phone-val');
+    const profileLetter = document.getElementById('profile-avatar-letter');
+
+    if (nameEl) nameEl.innerText = user.name;
+    if (codeEl) codeEl.innerText = user.guardian_code;
+    if (linkInput) {
+      linkInput.value = `${window.location.origin}/guardian/${user.guardian_code}`;
+    }
+
+    if (profileName) profileName.innerText = user.name;
+    if (profileEmail) profileEmail.innerText = user.email;
+    if (profilePhone) profilePhone.innerText = user.phone ? `📞 +91 ${user.phone}` : '📞 Not provided';
+    if (profileLetter) profileLetter.innerText = (user.name || 'U').charAt(0).toUpperCase();
+
+    // Populate edit modal fields
+    const editName = document.getElementById('edit-profile-name');
+    const editPhone = document.getElementById('edit-profile-phone');
+    const editEmail = document.getElementById('edit-profile-email');
+    if (editName) editName.value = user.name || '';
+    if (editPhone) editPhone.value = user.phone || '';
+    if (editEmail) editEmail.value = user.email || '';
+
+    // Sync user battery state if not using hardware API
+    if (user.last_battery_level && typeof SafeHerBattery !== 'undefined' && !SafeHerBattery.hasHardwareAPI) {
+      if (!localStorage.getItem('safeher_device_battery')) {
+        SafeHerBattery.setLevel(user.last_battery_level);
+      }
     }
   },
 
@@ -258,26 +292,60 @@ const App = {
       const resp = await fetch('/api/contacts');
       const data = await resp.json();
 
-      container.innerHTML = '';
-      if (countBadge) countBadge.innerText = `${data.count} / ${data.max}`;
+      if (data.contacts) {
+        localStorage.setItem('safeher_cached_contacts', JSON.stringify(data.contacts));
+        this.renderContactsList(data.contacts, data.count, data.max, false);
+      }
+    } catch (e) {
+      console.warn('[App] Offline fallback: loading cached emergency contacts');
+      const cached = localStorage.getItem('safeher_cached_contacts');
+      if (cached) {
+        try {
+          const contacts = JSON.parse(cached) || [];
+          this.renderContactsList(contacts, contacts.length, 5, true);
+        } catch (err) {}
+      } else {
+        container.innerHTML = `
+          <div style="text-align:center; padding:16px; color:#64748b; font-size:13px;">
+            Offline Mode: No cached contacts found. Connect to internet to sync contacts.
+          </div>
+        `;
+      }
+    }
+  },
 
-      if (data.contacts && data.contacts.length > 0) {
-        data.contacts.forEach((c) => {
-          const card = document.createElement('div');
-          card.className = 'contact-card';
-          card.innerHTML = `
-            <div class="contact-meta">
-              <h4>${c.name} <span class="relation-badge">${c.relation}</span></h4>
-              <p>📞 ${c.phone} ${c.email ? '• ✉️ ' + c.email : ''}</p>
-            </div>
-            <div style="display:flex; gap:6px; align-items:center;">
+  renderContactsList(contacts, count, max, isOffline = false) {
+    const container = document.getElementById('contacts-list');
+    const countBadge = document.getElementById('contacts-count-badge');
+    if (!container) return;
+
+    container.innerHTML = '';
+    if (countBadge) {
+      countBadge.innerText = `${count} / ${max}${isOffline ? ' (Offline)' : ''}`;
+    }
+
+    if (contacts && contacts.length > 0) {
+      contacts.forEach((c) => {
+        const card = document.createElement('div');
+        card.className = 'contact-card';
+        card.innerHTML = `
+          <div class="contact-meta">
+            <h4>${c.name} <span class="relation-badge">${c.relation}</span></h4>
+            <p>📞 ${c.phone} ${c.email ? '• ✉️ ' + c.email : ''}</p>
+          </div>
+          <div style="display:flex; gap:6px; align-items:center;">
+            ${!isOffline ? `
               <button class="btn-edit-contact" data-id="${c.id}" data-name="${encodeURIComponent(c.name)}" data-phone="${c.phone}" data-email="${c.email || ''}" data-relation="${c.relation}" title="Edit Guardian">✏️ Edit</button>
               <button class="btn-remove-contact" data-id="${c.id}" title="Remove Contact">🗑️</button>
-            </div>
-          `;
-          container.appendChild(card);
-        });
+            ` : `
+              <a href="tel:${c.phone}" style="padding:6px 10px; background:#e0f2fe; color:#0284c7; border-radius:6px; text-decoration:none; font-size:12px; font-weight:700;">📞 Call</a>
+            `}
+          </div>
+        `;
+        container.appendChild(card);
+      });
 
+      if (!isOffline) {
         // Bind Edit buttons
         container.querySelectorAll('.btn-edit-contact').forEach((btn) => {
           btn.addEventListener('click', (e) => {
@@ -309,15 +377,13 @@ const App = {
             }
           });
         });
-      } else {
-        container.innerHTML = `
-          <div style="text-align:center; padding:16px; color:#64748b; font-size:13px;">
-            No trusted contacts saved yet. Add up to 5 guardians who will receive your SOS alerts.
-          </div>
-        `;
       }
-    } catch (e) {
-      console.error('[App] Failed to load contacts:', e);
+    } else {
+      container.innerHTML = `
+        <div style="text-align:center; padding:16px; color:#64748b; font-size:13px;">
+          No trusted contacts saved yet. Add up to 5 guardians who will receive your SOS alerts.
+        </div>
+      `;
     }
   },
 

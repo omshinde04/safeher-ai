@@ -1,4 +1,4 @@
-const CACHE_NAME = 'safeher-ai-v4.0';
+const CACHE_NAME = 'safeher-ai-v4.1';
 const STATIC_ASSETS = [
   '/',
   '/login',
@@ -48,11 +48,11 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch Event - Network-first for APIs, JS, and HTML to guarantee latest code updates
+// Fetch Event - Resilient offline-first / network-first hybrid
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Skip caching POST requests or non-GET methods
+  // Skip caching non-GET methods
   if (event.request.method !== 'GET') {
     return;
   }
@@ -60,13 +60,13 @@ self.addEventListener('fetch', (event) => {
   // Network-first for /api/ routes
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(
-      fetch(event.request).catch(() => caches.match(event.request))
+      fetch(event.request).catch(() => caches.match(event.request, { ignoreSearch: true }))
     );
     return;
   }
 
-  // Network-first for JavaScript, CSS, and HTML to avoid stale code
-  if (url.pathname.endsWith('.js') || url.pathname.endsWith('.css') || event.request.headers.get('accept')?.includes('text/html')) {
+  // Navigation requests (HTML Pages) - Network first, fall back to matching cached page or home '/'
+  if (event.request.mode === 'navigate' || event.request.headers.get('accept')?.includes('text/html')) {
     event.respondWith(
       fetch(event.request)
         .then((networkResponse) => {
@@ -78,14 +78,36 @@ self.addEventListener('fetch', (event) => {
           }
           return networkResponse;
         })
-        .catch(() => caches.match(event.request))
+        .catch(async () => {
+          const matched = await caches.match(event.request, { ignoreSearch: true });
+          if (matched) return matched;
+          return caches.match('/');
+        })
     );
     return;
   }
 
-  // Stale-while-revalidate for images and fonts
+  // JavaScript and CSS - Network-first with ignoreSearch cache fallback
+  if (url.pathname.endsWith('.js') || url.pathname.endsWith('.css')) {
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseToCache);
+            });
+          }
+          return networkResponse;
+        })
+        .catch(() => caches.match(event.request, { ignoreSearch: true }))
+    );
+    return;
+  }
+
+  // Stale-while-revalidate for images, icons, and CDN fonts
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
+    caches.match(event.request, { ignoreSearch: true }).then((cachedResponse) => {
       const fetchPromise = fetch(event.request)
         .then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200) {

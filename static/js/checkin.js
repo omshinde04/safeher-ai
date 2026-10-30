@@ -121,6 +121,8 @@ const CheckIn = {
     const destInput = document.getElementById('checkin-destination');
     const destination = destInput && destInput.value.trim() ? destInput.value.trim() : 'Commute Route';
     const vehicleInput = document.getElementById('checkin-vehicle-no');
+    const vehicleNo = vehicleInput && vehicleInput.value.trim() ? vehicleInput.value.trim() : '';
+
     const battLevel = (typeof SafeHerBattery !== 'undefined' && typeof SafeHerBattery.getLevel === 'function')
       ? SafeHerBattery.getLevel()
       : (localStorage.getItem('safeher_device_battery') ? parseInt(localStorage.getItem('safeher_device_battery'), 10) : 90);
@@ -159,10 +161,13 @@ const CheckIn = {
 
         this.showActiveJourneyUI(this.selectedDuration, destination, this.selectedTransport, vehicleNo);
         this.loadHistory();
+      } else {
+        alert(data.error || 'Failed to start journey timer.');
       }
     } catch (e) {
-      console.error('[CheckIn] Failed to start:', e);
-      alert('Could not start check-in timer.');
+      console.warn('[CheckIn] Server unreachable; running local offline journey timer:', e);
+      this.activeCheckinId = 'offline_' + Date.now();
+      this.showActiveJourneyUI(this.selectedDuration, destination, this.selectedTransport, vehicleNo);
     }
   },
 

@@ -261,9 +261,44 @@ const SOS = {
         alert(data.error || 'Failed to trigger SOS');
       }
     } catch (e) {
-      console.error('[SOS] Trigger failed:', e);
-      // Even if network fails, prompt user to dial 112 immediately
-      window.location.href = 'tel:112';
+      console.warn('[SOS] Server unreachable / offline. Activating 100% Offline Cellular SMS Dispatch Mode:', e);
+
+      // Read trusted contacts from local cache
+      const cachedContactsRaw = localStorage.getItem('safeher_cached_contacts');
+      let contacts = [];
+      if (cachedContactsRaw) {
+        try {
+          contacts = JSON.parse(cachedContactsRaw) || [];
+        } catch (err) {}
+      }
+
+      const lat = this.currentLocation.lat;
+      const lng = this.currentLocation.lng;
+      const mapLink = (lat && lng) ? `https://maps.google.com/?q=${lat},${lng}` : 'Pending location';
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      const sep = isIOS ? '&' : '?';
+
+      const sosMsg = `🚨 EMERGENCY SOS ALERT! I am in danger and need immediate help! 📍 Location: ${mapLink} 🔋 Battery: ${batteryLevel}% - Sent via SafeHer AI`;
+
+      const contact_links = contacts.map(c => {
+        const cleanPhone = (c.phone || '').replace(/[^0-9+]/g, '');
+        return {
+          name: c.name,
+          phone: c.phone,
+          relation: c.relation,
+          sms_url: `sms:${cleanPhone}${sep}body=${encodeURIComponent(sosMsg)}`,
+          whatsapp_url: `https://wa.me/${cleanPhone.replace('+', '')}?text=${encodeURIComponent(sosMsg)}`
+        };
+      });
+
+      const offlineData = {
+        success: true,
+        offline: true,
+        dispatched_battery: batteryLevel,
+        contact_links: contact_links
+      };
+
+      this.displayActiveSOSModal(offlineData);
     }
   },
 
@@ -278,8 +313,24 @@ const SOS = {
       battSpan.innerText = `🔋 Battery: ${bVal}%`;
     }
 
+    const gpsSpan = document.getElementById('sos-telemetry-gps');
+    if (gpsSpan) {
+      if (data.offline) {
+        gpsSpan.innerHTML = `⚡ <span style="color:#d97706;">Offline Cellular SMS Mode</span>`;
+      } else {
+        gpsSpan.innerHTML = `📍 Live GPS Attached`;
+      }
+    }
+
     const linksContainer = document.getElementById('sos-contact-actions');
     linksContainer.innerHTML = '';
+
+    if (data.offline) {
+      const banner = document.createElement('div');
+      banner.style.cssText = 'background:#fef3c7; border:1px solid #fde68a; color:#92400e; padding:10px 12px; border-radius:10px; font-size:12px; font-weight:700; margin-bottom:12px; display:flex; align-items:center; gap:6px;';
+      banner.innerHTML = '<span>⚡</span> <span>No internet connection. Tap <b>✉️ SMS</b> below to send direct emergency text to guardians without data!</span>';
+      linksContainer.appendChild(banner);
+    }
 
     if (data.contact_links && data.contact_links.length > 0) {
       data.contact_links.forEach((c) => {
@@ -303,7 +354,7 @@ const SOS = {
         linksContainer.appendChild(row);
       });
     } else {
-      linksContainer.innerHTML = `
+      linksContainer.innerHTML += `
         <p style="font-size:13px; color:#dc2626; margin-bottom:12px; background:#fee2e2; border:1px solid #fca5a5; padding:10px; border-radius:8px;">
           No trusted contacts added yet! Please add emergency contacts in settings.
         </p>
@@ -314,20 +365,24 @@ const SOS = {
   },
 
   async cancelActiveSOS() {
+    this.stopSiren(); // Always immediately silence the siren
+
+    const modal = document.getElementById('sos-result-modal');
+    if (modal) modal.style.display = 'none';
+
     if (!this.activeEventId) {
-      const modal = document.getElementById('sos-result-modal');
-      if (modal) modal.style.display = 'none';
       return;
     }
 
     try {
       await fetch(`/api/sos/cancel/${this.activeEventId}`, { method: 'POST' });
-      const modal = document.getElementById('sos-result-modal');
-      if (modal) modal.style.display = 'none';
       this.activeEventId = null;
       alert('SOS marked as cancelled.');
     } catch (e) {
-      console.error(e);
+      this.activeEventId = null;
+      console.warn('[SOS] Offline cancel noted.');
+    }
+  },
     }
   },
 
