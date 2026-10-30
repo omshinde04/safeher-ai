@@ -1078,12 +1078,12 @@ input:checked + .slider:before {
 }
 
 /* ==========================================================================
-   VIEW 4: JOURNEY SAFETY CHECK-IN
+   VIEW 4: JOURNEY SAFETY CHECK-IN & GROUP TRAVEL
    ========================================================================== */
 .duration-selector {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
   margin-bottom: 16px;
 }
 
@@ -1091,7 +1091,7 @@ input:checked + .slider:before {
   background: #f8fafc;
   border: 1.5px solid #cbd5e1;
   border-radius: var(--radius-sm);
-  padding: 12px 6px;
+  padding: 11px 4px;
   color: #334155;
   font-size: 13px;
   font-weight: 700;
@@ -1107,10 +1107,82 @@ input:checked + .slider:before {
   box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
 }
 
+/* Transport Mode Pills */
+.transport-selector {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.btn-transport {
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 10px 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-transport .transport-icon {
+  font-size: 20px;
+}
+
+.btn-transport.selected {
+  border-color: var(--primary-indigo);
+  background: #eef2ff;
+  color: var(--primary-indigo);
+  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.15);
+}
+
+/* Group 4-Member Buddy Mode */
+.group-buddy-card {
+  background: #f8fafc;
+  border: 1.5px dashed #cbd5e1;
+  border-radius: 14px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+}
+
+.group-member-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.group-member-chip {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #334155;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.group-member-chip.selected {
+  border-color: #6366f1;
+  background: #eef2ff;
+  color: #4f46e5;
+}
+
 .active-checkin-display {
   display: none;
   text-align: center;
-  padding: 24px 0;
+  padding: 16px 0;
 }
 
 .timer-circular-badge {
@@ -1123,7 +1195,7 @@ input:checked + .slider:before {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  margin: 0 auto 18px auto;
+  margin: 0 auto 16px auto;
   box-shadow: 0 8px 24px rgba(79, 70, 229, 0.18);
 }
 
@@ -1132,6 +1204,124 @@ input:checked + .slider:before {
   font-size: 32px;
   font-weight: 800;
   color: #0f172a;
+}
+
+/* Quick Extend Pill Buttons */
+.btn-extend-pill {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-extend-pill:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+/* Simulated Fake Incoming Call Screen (Discreet Escape) */
+.fake-call-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(180deg, #090d16 0%, #151d2f 100%);
+  z-index: 999999;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: max(40px, env(safe-area-inset-top)) 24px max(40px, env(safe-area-inset-bottom)) 24px;
+  text-align: center;
+  color: #ffffff;
+  animation: fadeIn 0.3s ease;
+}
+
+.fake-call-caller-avatar {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #4f46e5, #ec4899);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 44px;
+  margin: 0 auto 16px auto;
+  box-shadow: 0 0 30px rgba(99, 102, 241, 0.4);
+  animation: avatarPulse 1.8s infinite;
+}
+
+@keyframes avatarPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+}
+
+.fake-call-name {
+  font-family: var(--font-heading);
+  font-size: 26px;
+  font-weight: 800;
+  margin-bottom: 4px;
+}
+
+.fake-call-type {
+  font-size: 14px;
+  color: #94a3b8;
+  letter-spacing: 0.05em;
+}
+
+.fake-call-actions {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding-bottom: 20px;
+}
+
+.fake-call-btn {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30px;
+  color: #ffffff;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  transition: transform 0.2s ease;
+}
+
+.fake-call-btn:active {
+  transform: scale(0.92);
+}
+
+.btn-decline-call {
+  background: #ef4444;
+}
+
+.btn-accept-call {
+  background: #10b981;
+  animation: ringVibe 1s infinite alternate;
+}
+
+@keyframes ringVibe {
+  0% { transform: scale(1); }
+  100% { transform: scale(1.1); box-shadow: 0 0 25px rgba(16, 185, 129, 0.6); }
+}
+
+/* Past Journeys Audit Cards */
+.journey-item-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
 }
 
 /* ==========================================================================

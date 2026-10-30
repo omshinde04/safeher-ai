@@ -466,6 +466,9 @@ def start_checkin():
     data = request.get_json() or {}
     duration_minutes = int(data.get('duration_minutes', 15))
     destination = data.get('destination', 'Home/Commute').strip()
+    transport_mode = data.get('transport_mode', 'walking').strip() # 'walking', 'cab', 'auto', 'bus'
+    vehicle_no = data.get('vehicle_no', '').strip().upper()
+    group_members = data.get('group_members', '').strip()
 
     now = datetime.datetime.now()
     expires_at = now + datetime.timedelta(minutes=duration_minutes)
@@ -475,18 +478,85 @@ def start_checkin():
     # Mark old running checkins as superseded
     cursor.execute("UPDATE checkins SET status = 'superseded' WHERE user_id = ? AND status = 'running'", (user_id,))
     cursor.execute('''
-        INSERT INTO checkins (user_id, destination, duration_minutes, status, started_at, expires_at)
-        VALUES (?, ?, ?, 'running', ?, ?)
-    ''', (user_id, destination, duration_minutes, now.strftime('%Y-%m-%d %H:%M:%S'), expires_at.strftime('%Y-%m-%d %H:%M:%S')))
+        INSERT INTO checkins (user_id, destination, duration_minutes, transport_mode, vehicle_no, group_members, status, started_at, expires_at)
+        VALUES (?, ?, ?, ?, ?, ?, 'running', ?, ?)
+    ''', (user_id, destination, duration_minutes, transport_mode, vehicle_no, group_members, now.strftime('%Y-%m-%d %H:%M:%S'), expires_at.strftime('%Y-%m-%d %H:%M:%S')))
     conn.commit()
     checkin_id = cursor.lastrowid
+
+    # Retrieve user info for group sharing
+    cursor.execute("SELECT name, guardian_code FROM users WHERE id = ?", (user_id,))
+    user = cursor.fetchone()
     conn.close()
+
+    # Pre-formatted Group/Buddy Live Trip Share Message
+    vehicle_text = f" | Vehicle: {vehicle_no}" if vehicle_no else ""
+    group_text = f" | Group: {group_members}" if group_members else ""
+    share_msg = (
+        f"🚕 *SafeHer Journey Started by {user['name']}*\n"
+        f"Destination: {destination} ({transport_mode.title()}){vehicle_text}{group_text}\n"
+        f"Safety Check-In Timer: {duration_minutes} mins\n"
+        f"Live Guardian Tracker: {request.host_url}guardian/{user['guardian_code']}\n"
+        f"Auto-SOS will trigger if not confirmed safe."
+    )
+    share_url = f"https://api.whatsapp.com/send?text={requests.utils.quote(share_msg)}"
 
     return jsonify({
         'success': True,
         'checkin_id': checkin_id,
         'duration_minutes': duration_minutes,
-        'expires_at': expires_at.isoformat()
+        'destination': destination,
+        'transport_mode': transport_mode,
+        'vehicle_no': vehicle_no,
+        'group_members': group_members,
+        'expires_at': expires_at.isoformat(),
+        'trip_share_url': share_url,
+        'trip_share_text': share_msg
+    })
+
+@app.route('/api/checkin/extend/<int:checkin_id>', methods=['POST'])
+def extend_checkin(checkin_id):
+    auth_err = require_auth()
+    if auth_err: return auth_err
+
+    user_id = get_current_user_id()
+    data = request.get_json() or {}
+    extra_minutes = int(data.get('extra_minutes', 5))
+
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT duration_minutes, expires_at FROM checkins WHERE id = ? AND user_id = ? AND status = 'running'", (checkin_id, user_id))
+    row = cursor.fetchone()
+
+    if not row:
+        conn.close()
+        return jsonify({'error': 'Active check-in session not found.'}), 404
+
+    curr_exp_str = row['expires_at']
+    try:
+        curr_exp = datetime.datetime.strptime(curr_exp_str, '%Y-%m-%d %H:%M:%S')
+    except Exception:
+        curr_exp = datetime.datetime.now()
+
+    new_exp = curr_exp + datetime.timedelta(minutes=extra_minutes)
+    new_duration = row['duration_minutes'] + extra_minutes
+
+    cursor.execute('''
+        UPDATE checkins
+        SET duration_minutes = ?, expires_at = ?
+        WHERE id = ? AND user_id = ?
+    ''', (new_duration, new_exp.strftime('%Y-%m-%d %H:%M:%S'), checkin_id, user_id))
+    conn.commit()
+    conn.close()
+
+    seconds_left = max(0, int((new_exp - datetime.datetime.now()).total_seconds()))
+
+    return jsonify({
+        'success': True,
+        'message': f'Timer extended by +{extra_minutes} minutes.',
+        'new_duration': new_duration,
+        'expires_at': new_exp.isoformat(),
+        'seconds_left': seconds_left
     })
 
 @app.route('/api/checkin/safe/<int:checkin_id>', methods=['POST'])
@@ -528,6 +598,26 @@ def escalate_checkin(checkin_id):
     conn.close()
 
     return jsonify({'success': True, 'message': 'Check-in escalated to SOS.'})
+
+@app.route('/api/checkin/history', methods=['GET'])
+def checkin_history():
+    auth_err = require_auth()
+    if auth_err: return auth_err
+
+    user_id = get_current_user_id()
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT id, destination, duration_minutes, transport_mode, vehicle_no, group_members, status, started_at, resolved_at
+        FROM checkins
+        WHERE user_id = ?
+        ORDER BY id DESC
+        LIMIT 10
+    ''', (user_id,))
+    rows = [dict(r) for r in cursor.fetchall()]
+    conn.close()
+
+    return jsonify({'success': True, 'history': rows})
 
 # --- Guardian Dashboard Status API ---
 @app.route('/api/guardian/status/<guardian_code>', methods=['GET'])

@@ -259,46 +259,148 @@
     </section>
 
     <!-- ====================================================================
-         TAB 4: JOURNEY SAFETY CHECK-IN
+         TAB 4: JOURNEY SAFETY CHECK-IN & 4-MEMBER GROUP TRAVEL
          ==================================================================== -->
     <section id="tab-checkin" class="view-tab">
       <div id="checkin-setup-card" class="glass-card">
         <div class="card-title">
           <span>⏱️ Journey Safety Check-In</span>
+          <span style="font-size:11px; background:#eef2ff; color:#4f46e5; padding:3px 8px; border-radius:12px; font-weight:700;">Live Guardian Sync</span>
         </div>
         <p style="font-size:13px; color:#64748b; margin-bottom:14px; line-height:1.5;">
-          Set a safety timer when walking or commuting. If you do not mark yourself "Safe" when the timer expires, SafeHer AI automatically triggers an SOS alert!
+          Set a monitored safety timer for your commute. If you don't confirm safe arrival before time runs out, SafeHer AI automatically escalates and alerts your guardians.
         </p>
 
-        <div style="font-size:12px; font-weight:700; color:#0f172a; margin-bottom:8px;">Choose Journey Duration:</div>
+        <!-- Feature 1: Transport Mode Selector -->
+        <div style="font-size:12px; font-weight:700; color:#0f172a; margin-bottom:8px;">Transport Mode:</div>
+        <div class="transport-selector">
+          <button type="button" class="btn-transport selected" data-mode="walking">
+            <span class="transport-icon">🚶</span>
+            <span>Walking</span>
+          </button>
+          <button type="button" class="btn-transport" data-mode="cab">
+            <span class="transport-icon">🚖</span>
+            <span>Cab / Uber</span>
+          </button>
+          <button type="button" class="btn-transport" data-mode="auto">
+            <span class="transport-icon">🛺</span>
+            <span>Auto</span>
+          </button>
+          <button type="button" class="btn-transport" data-mode="bus">
+            <span class="transport-icon">🚌</span>
+            <span>Bus/Metro</span>
+          </button>
+        </div>
+
+        <!-- Dynamic Vehicle Info for Cab/Auto -->
+        <div id="checkin-vehicle-box" style="display:none; margin-bottom:14px;">
+          <label style="font-size:12px; font-weight:700; color:#0f172a; display:block; margin-bottom:6px;">Vehicle / Plate No & Driver Details:</label>
+          <input type="text" id="checkin-vehicle-no" class="chat-input" style="width:100%;" placeholder="e.g. MH 14 AB 1234 (White Swift / Uber)">
+        </div>
+
+        <!-- Feature 2: 4-Member Group / Buddy Safety Travel Mode -->
+        <div class="group-buddy-card">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div style="display:flex; align-items:center; gap:6px;">
+              <span style="font-size:16px;">👥</span>
+              <span style="font-size:12px; font-weight:800; color:#0f172a;">4-Member Group Mode</span>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="toggle-group-mode" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div id="group-mode-details" style="margin-top:10px;">
+            <p style="font-size:11px; color:#64748b; margin-bottom:6px;">
+              Select companions sharing this commute to sync safety notifications across the 4-member group:
+            </p>
+            <div class="group-member-grid">
+              <div class="group-member-chip selected" data-member="Sakshi (Lead)">
+                <span>✓</span> <span>Sakshi (Lead)</span>
+              </div>
+              <div class="group-member-chip selected" data-member="Om (Tech)">
+                <span>✓</span> <span>Om (Tech)</span>
+              </div>
+              <div class="group-member-chip selected" data-member="Anjali (Member)">
+                <span>✓</span> <span>Anjali (Member)</span>
+              </div>
+              <div class="group-member-chip selected" data-member="Pooja (Member)">
+                <span>✓</span> <span>Pooja (Member)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Feature 3: Duration Selector -->
+        <div style="font-size:12px; font-weight:700; color:#0f172a; margin-bottom:8px;">Safety Timer Duration:</div>
         <div class="duration-selector">
-          <button class="btn-duration" data-mins="5">5m</button>
-          <button class="btn-duration selected" data-mins="15">15m</button>
-          <button class="btn-duration" data-mins="30">30m</button>
-          <button class="btn-duration" data-mins="45">45m</button>
+          <button type="button" class="btn-duration" data-mins="5">5m</button>
+          <button type="button" class="btn-duration selected" data-mins="15">15m</button>
+          <button type="button" class="btn-duration" data-mins="30">30m</button>
+          <button type="button" class="btn-duration" data-mins="45">45m</button>
+          <button type="button" class="btn-duration" data-mins="60">60m</button>
         </div>
 
         <div style="margin-bottom:16px;">
-          <label style="font-size:12px; font-weight:700; color:#0f172a; display:block; margin-bottom:6px;">Destination / Note:</label>
-          <input type="text" id="checkin-destination" class="chat-input" style="width:100%;" placeholder="e.g. Walking home from college library...">
+          <label style="font-size:12px; font-weight:700; color:#0f172a; display:block; margin-bottom:6px;">Destination / Commute Route:</label>
+          <input type="text" id="checkin-destination" class="chat-input" style="width:100%;" placeholder="e.g. Tathawade Campus to Wakad Chowk">
         </div>
 
-        <button id="btn-start-checkin" style="width:100%; padding:14px; background:var(--primary-gradient); color:#ffffff; font-family:var(--font-heading); font-size:15px; font-weight:800; border:none; border-radius:var(--radius-sm); cursor:pointer; box-shadow:0 4px 14px rgba(79,70,229,0.3);">
-          Start Safety Timer 🚀
+        <button type="button" id="btn-start-checkin" style="width:100%; padding:14px; background:var(--primary-gradient); color:#ffffff; font-family:var(--font-heading); font-size:15px; font-weight:800; border:none; border-radius:12px; cursor:pointer; box-shadow:0 4px 14px rgba(79,70,229,0.3); display:flex; align-items:center; justify-content:center; gap:8px;">
+          <span>🚀 Start Protected Journey</span>
         </button>
       </div>
 
       <!-- Active Running Journey State -->
       <div id="active-checkin-display" class="glass-card active-checkin-display">
-        <div id="active-journey-destination" style="font-size:14px; color:#475569; font-weight:600; margin-bottom:14px;">Heading to destination...</div>
+        <div style="display:flex; justify-content:center; gap:8px; margin-bottom:8px;">
+          <span id="active-transport-badge" style="background:#eef2ff; color:#4f46e5; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:800;">🚶 Walking</span>
+          <span id="active-vehicle-badge" style="display:none; background:#f1f5f9; color:#334155; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:700;">MH 14 AB 1234</span>
+        </div>
+
+        <div id="active-journey-destination" style="font-size:15px; color:#0f172a; font-weight:800; margin-bottom:4px;">Heading to destination...</div>
+        <div id="active-group-members-display" style="font-size:12px; color:#6366f1; font-weight:600; margin-bottom:14px;">👥 Group: Sakshi, Om, Anjali, Pooja</div>
+
         <div class="timer-circular-badge">
           <div id="journey-timer-digits" class="timer-digits">15:00</div>
           <span style="font-size:11px; color:#64748b; font-weight:700; margin-top:4px;">REMAINING</span>
         </div>
-        <p style="font-size:12px; color:#64748b; margin-bottom:18px;">SafeHer AI is continuously monitoring. Confirm safety once you reach.</p>
-        <button id="btn-reached-safe" style="padding:14px 28px; background:#10b981; color:#fff; font-family:var(--font-heading); font-size:15px; font-weight:800; border:none; border-radius:var(--radius-md); cursor:pointer; box-shadow:0 4px 15px rgba(16,185,129,0.3);">
+
+        <!-- Quick Extend Controls (+5m / +10m) -->
+        <div style="display:flex; justify-content:center; gap:8px; margin-bottom:16px;">
+          <span style="font-size:11px; color:#64748b; font-weight:700; align-self:center;">Running Late?</span>
+          <button type="button" class="btn-extend-pill" data-extend="5">+5m Extend</button>
+          <button type="button" class="btn-extend-pill" data-extend="10">+10m Extend</button>
+        </div>
+
+        <button type="button" id="btn-reached-safe" style="width:100%; padding:14px; background:#10b981; color:#fff; font-family:var(--font-heading); font-size:15px; font-weight:800; border:none; border-radius:12px; cursor:pointer; box-shadow:0 4px 15px rgba(16,185,129,0.3); margin-bottom:10px;">
           ✓ I Reached Safely
         </button>
+
+        <!-- Secondary Protective Actions -->
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:10px;">
+          <button type="button" id="btn-trigger-fake-call" style="padding:10px; background:#f8fafc; border:1px solid #cbd5e1; color:#0f172a; font-size:12px; font-weight:700; border-radius:10px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:4px;">
+            <span>📞</span> Fake Call Escape
+          </button>
+          <a id="btn-share-journey-wa" href="#" target="_blank" style="padding:10px; background:#f0fdf4; border:1px solid #bbf7d0; color:#15803d; font-size:12px; font-weight:700; border-radius:10px; text-decoration:none; display:flex; align-items:center; justify-content:center; gap:4px;">
+            <span>💬</span> Share on WhatsApp
+          </a>
+        </div>
+
+        <button type="button" id="btn-escalate-now" style="background:none; border:none; color:#ef4444; font-size:12px; font-weight:700; cursor:pointer; padding:6px;">
+          ⚠️ Emergency Escalation (Trigger SOS Now)
+        </button>
+      </div>
+
+      <!-- Feature 4: Recent Journey History Feed -->
+      <div class="glass-card" style="margin-top:14px;">
+        <div class="card-title">
+          <span>📜 Recent Safety Journeys</span>
+          <button type="button" id="btn-refresh-checkin-history" style="background:none; border:none; color:var(--primary-indigo); font-size:12px; font-weight:700; cursor:pointer;">Refresh ⟳</button>
+        </div>
+        <div id="checkin-history-container">
+          <div style="text-align:center; padding:16px; color:#94a3b8; font-size:12px;">Loading past journey logs...</div>
+        </div>
       </div>
     </section>
 
@@ -651,6 +753,44 @@
       <div style="display:flex; gap:8px;">
         <button type="button" id="btn-close-battery-modal" style="flex:1; padding:11px; background:#f1f5f9; border:1px solid #cbd5e1; color:#334155; border-radius:10px; cursor:pointer; font-weight:600;">Close</button>
         <button type="button" id="btn-save-battery-modal" style="flex:1; padding:11px; background:var(--primary-gradient); border:none; color:#ffffff; font-weight:800; border-radius:10px; cursor:pointer; box-shadow:0 2px 8px rgba(79,70,229,0.25);">Save Level</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====================================================================
+       MODAL 8: DISCREET FAKE CALL ESCAPE SCREEN (FOR HARASSMENT DETERRENCE)
+       ==================================================================== -->
+  <div id="fake-call-overlay" class="fake-call-overlay">
+    <div>
+      <div style="font-size:12px; text-transform:uppercase; letter-spacing:2px; color:#94a3b8; margin-top:20px;">SafeHer Discreet Escape</div>
+      <div class="fake-call-caller-avatar">
+        <span>👨‍👧</span>
+      </div>
+      <div class="fake-call-name">Dad / Family</div>
+      <div id="fake-call-status-label" class="fake-call-type">Incoming Cellular Call...</div>
+    </div>
+
+    <!-- Active In-Call Talking Script & Timer -->
+    <div id="fake-call-active-body" style="display:none; background:rgba(255,255,255,0.06); padding:16px; border-radius:16px; border:1px solid rgba(255,255,255,0.1); margin:0 10px;">
+      <div style="font-size:11px; color:#10b981; font-weight:700; margin-bottom:6px;">● CALL CONNECTED (<span id="fake-call-timer">00:01</span>)</div>
+      <p style="font-size:13px; color:#e2e8f0; line-height:1.5; font-style:italic;">
+        "Speak aloud naturally: 'Yes Dad, I'm just 2 minutes away, near the main gate. I can see you, wait there!'"
+      </p>
+    </div>
+
+    <div class="fake-call-actions">
+      <div style="display:flex; flex-direction:column; align-items:center; gap:6px;">
+        <button type="button" id="btn-decline-fake-call" class="fake-call-btn btn-decline-call">
+          ✕
+        </button>
+        <span style="font-size:12px; color:#94a3b8; font-weight:700;">Decline</span>
+      </div>
+
+      <div id="fake-call-accept-wrapper" style="display:flex; flex-direction:column; align-items:center; gap:6px;">
+        <button type="button" id="btn-accept-fake-call" class="fake-call-btn btn-accept-call">
+          📞
+        </button>
+        <span style="font-size:12px; color:#10b981; font-weight:700;">Accept</span>
       </div>
     </div>
   </div>
