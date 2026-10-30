@@ -124,13 +124,18 @@ const SOS = {
     const overlay = document.getElementById('countdown-overlay');
     if (overlay) overlay.classList.remove('active');
 
-    // Get device battery
-    let batteryLevel = 100;
-    if (navigator.getBattery) {
+    // Get exact device battery level (hardware API or synced calibrated value)
+    let batteryLevel = 90;
+    if (window.SafeHerBattery && typeof window.SafeHerBattery.getLevel === 'function') {
+      batteryLevel = window.SafeHerBattery.getLevel();
+    } else if (navigator.getBattery) {
       try {
         const b = await navigator.getBattery();
         batteryLevel = Math.round(b.level * 100);
       } catch (e) {}
+    } else {
+      const saved = localStorage.getItem('safeher_device_battery');
+      if (saved) batteryLevel = parseInt(saved, 10);
     }
 
     try {
@@ -149,6 +154,7 @@ const SOS = {
       const data = await resp.json();
       if (data.success) {
         this.activeEventId = data.event_id;
+        data.dispatched_battery = batteryLevel;
         this.displayActiveSOSModal(data);
       } else {
         alert(data.error || 'Failed to trigger SOS');
@@ -164,6 +170,13 @@ const SOS = {
     const modal = document.getElementById('sos-result-modal');
     if (!modal) return;
 
+    // Update battery telemetry display
+    const battSpan = document.getElementById('sos-telemetry-battery');
+    if (battSpan) {
+      const bVal = data.dispatched_battery !== undefined ? data.dispatched_battery : (window.SafeHerBattery ? window.SafeHerBattery.getLevel() : 90);
+      battSpan.innerText = `🔋 Battery: ${bVal}%`;
+    }
+
     const linksContainer = document.getElementById('sos-contact-actions');
     linksContainer.innerHTML = '';
 
@@ -171,22 +184,28 @@ const SOS = {
       data.contact_links.forEach((c) => {
         const row = document.createElement('div');
         row.className = 'sos-action-row';
-        row.style.cssText = 'display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; background:rgba(255,255,255,0.05); padding:10px; border-radius:8px;';
+        row.style.cssText = 'display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; background:#f8fafc; border:1px solid #e2e8f0; padding:12px; border-radius:12px;';
         row.innerHTML = `
-          <div>
-            <div style="font-weight:700; font-size:14px;">${c.name}</div>
-            <div style="font-size:12px; color:#94a3b8;">${c.phone}</div>
+          <div style="min-width:0; margin-right:8px;">
+            <div style="font-weight:800; font-size:14px; color:#0f172a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${c.name}</div>
+            <div style="font-size:12px; color:#64748b;">${c.phone}</div>
           </div>
-          <div style="display:flex; gap:8px;">
-            <a href="${c.whatsapp_url}" target="_blank" style="background:#25d366; color:#080b12; padding:6px 12px; border-radius:6px; font-weight:700; font-size:12px; text-decoration:none;">WhatsApp</a>
-            <a href="${c.sms_url}" style="background:#4facfe; color:#080b12; padding:6px 12px; border-radius:6px; font-weight:700; font-size:12px; text-decoration:none;">SMS</a>
+          <div style="display:flex; gap:8px; flex-shrink:0;">
+            <a href="${c.whatsapp_url}" target="_blank" style="background:#22c55e; color:#ffffff; padding:8px 12px; border-radius:8px; font-weight:800; font-size:12px; text-decoration:none; display:flex; align-items:center; gap:4px; box-shadow:0 2px 6px rgba(34,197,94,0.3);">
+              <span>💬</span> WhatsApp
+            </a>
+            <a href="${c.sms_url}" style="background:#0284c7; color:#ffffff; padding:8px 12px; border-radius:8px; font-weight:800; font-size:12px; text-decoration:none; display:flex; align-items:center; gap:4px; box-shadow:0 2px 6px rgba(2,132,199,0.25);">
+              <span>✉️</span> SMS
+            </a>
           </div>
         `;
         linksContainer.appendChild(row);
       });
     } else {
       linksContainer.innerHTML = `
-        <p style="font-size:13px; color:#f87171; margin-bottom:12px;">No trusted contacts added yet! Please add emergency contacts in settings.</p>
+        <p style="font-size:13px; color:#dc2626; margin-bottom:12px; background:#fee2e2; border:1px solid #fca5a5; padding:10px; border-radius:8px;">
+          No trusted contacts added yet! Please add emergency contacts in settings.
+        </p>
       `;
     }
 

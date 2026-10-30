@@ -356,7 +356,10 @@ def trigger_sos():
     lat = data.get('latitude')
     lng = data.get('longitude')
     accuracy = data.get('accuracy', 0)
-    battery = data.get('battery_level', 100)
+    try:
+        battery = int(data.get('battery_level', 90))
+    except (ValueError, TypeError):
+        battery = 90
     trigger_type = data.get('trigger_type', 'manual') # 'manual', 'shake', 'voice', 'checkin_timeout'
 
     conn = get_db()

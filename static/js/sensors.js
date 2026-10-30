@@ -1,6 +1,133 @@
 // ==========================================================================
-// SAFEHER AI - SENSORS & EDGE RECOGNITION (SHAKE, VOICE, BATTERY)
+// CENTRAL DEVICE BATTERY CONTROLLER (iOS SAFARI & HARDWARE API)
 // ==========================================================================
+const SafeHerBattery = {
+  currentLevel: 90,
+  hasHardwareAPI: false,
+
+  async init() {
+    // 1. Read calibrated value from localStorage
+    const saved = localStorage.getItem('safeher_device_battery');
+    if (saved) {
+      this.currentLevel = Math.max(1, Math.min(100, parseInt(saved, 10)));
+    } else {
+      this.currentLevel = 90;
+      localStorage.setItem('safeher_device_battery', '90');
+    }
+
+    // 2. If hardware API is supported (Android/Chrome), read live battery
+    if ('getBattery' in navigator) {
+      try {
+        const b = await navigator.getBattery();
+        this.hasHardwareAPI = true;
+        this.currentLevel = Math.round(b.level * 100);
+        localStorage.setItem('safeher_device_battery', this.currentLevel.toString());
+
+        const handleUpdate = () => {
+          this.currentLevel = Math.round(b.level * 100);
+          localStorage.setItem('safeher_device_battery', this.currentLevel.toString());
+          this.updateUI();
+        };
+
+        b.addEventListener('levelchange', handleUpdate);
+        b.addEventListener('chargingchange', handleUpdate);
+      } catch (e) {
+        console.warn('[Battery] Hardware API error:', e);
+      }
+    }
+
+    this.updateUI();
+    this.bindEvents();
+  },
+
+  setLevel(pct) {
+    this.currentLevel = Math.max(1, Math.min(100, parseInt(pct, 10)));
+    localStorage.setItem('safeher_device_battery', this.currentLevel.toString());
+    this.updateUI();
+  },
+
+  getLevel() {
+    return this.currentLevel;
+  },
+
+  updateUI() {
+    const valSpan = document.getElementById('battery-val');
+    const heroSpan = document.getElementById('hero-battery-val');
+    const pill = document.getElementById('battery-pill');
+    const banner = document.getElementById('battery-warning-banner');
+
+    if (valSpan) valSpan.innerText = `${this.currentLevel}%`;
+    if (heroSpan) heroSpan.innerText = `${this.currentLevel}%`;
+
+    if (pill) {
+      pill.style.display = 'flex';
+      if (this.currentLevel <= 15) {
+        pill.classList.add('low');
+      } else {
+        pill.classList.remove('low');
+      }
+    }
+
+    if (banner) {
+      banner.style.display = (this.currentLevel <= 15) ? 'flex' : 'none';
+    }
+  },
+
+  bindEvents() {
+    const openModal = () => {
+      const modal = document.getElementById('battery-modal');
+      const slider = document.getElementById('battery-modal-slider');
+      const display = document.getElementById('battery-modal-display');
+      if (modal && slider && display) {
+        slider.value = this.currentLevel;
+        display.innerText = `${this.currentLevel}%`;
+        modal.classList.add('active');
+      }
+    };
+
+    const pill = document.getElementById('battery-pill');
+    if (pill) pill.addEventListener('click', openModal);
+
+    const heroBtn = document.getElementById('btn-open-battery-calibrate');
+    if (heroBtn) heroBtn.addEventListener('click', openModal);
+
+    const closeModal = () => {
+      const modal = document.getElementById('battery-modal');
+      if (modal) modal.classList.remove('active');
+    };
+
+    const closeBtn = document.getElementById('btn-close-battery-modal');
+    const closeBtnX = document.getElementById('btn-close-battery-modal-x');
+    if (closeBtn) closeBtn.addEventListener('click', closeModal);
+    if (closeBtnX) closeBtnX.addEventListener('click', closeModal);
+
+    const slider = document.getElementById('battery-modal-slider');
+    const display = document.getElementById('battery-modal-display');
+    if (slider && display) {
+      slider.addEventListener('input', (e) => {
+        display.innerText = `${e.target.value}%`;
+      });
+    }
+
+    document.querySelectorAll('.btn-battery-preset').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const pct = btn.dataset.pct;
+        if (slider) slider.value = pct;
+        if (display) display.innerText = `${pct}%`;
+      });
+    });
+
+    const saveBtn = document.getElementById('btn-save-battery-modal');
+    if (saveBtn) {
+      saveBtn.addEventListener('click', () => {
+        const val = slider ? slider.value : this.currentLevel;
+        this.setLevel(val);
+        closeModal();
+      });
+    }
+  }
+};
+window.SafeHerBattery = SafeHerBattery;
 
 const Sensors = {
   shakeEnabled: false,
@@ -21,37 +148,7 @@ const Sensors = {
 
   // 1. Battery Status Monitor
   async initBattery() {
-    if ('getBattery' in navigator) {
-      try {
-        const battery = await navigator.getBattery();
-        const updateBatteryUI = () => {
-          const levelPercent = Math.round(battery.level * 100);
-          const batteryPill = document.getElementById('battery-pill');
-          const batteryVal = document.getElementById('battery-val');
-          const batteryBanner = document.getElementById('battery-warning-banner');
-
-          if (batteryVal) batteryVal.innerText = `${levelPercent}%`;
-
-          // If low battery (<= 15%) and not charging, trigger warning banner
-          if (levelPercent <= 15 && !battery.charging) {
-            if (batteryPill) batteryPill.classList.add('low');
-            if (batteryBanner) batteryBanner.style.display = 'flex';
-          } else {
-            if (batteryPill) batteryPill.classList.remove('low');
-            if (batteryBanner) batteryBanner.style.display = 'none';
-          }
-        };
-
-        battery.addEventListener('levelchange', updateBatteryUI);
-        battery.addEventListener('chargingchange', updateBatteryUI);
-        updateBatteryUI();
-      } catch (e) {
-        console.warn('[Sensors] Battery API error:', e);
-      }
-    } else {
-      const batteryPill = document.getElementById('battery-pill');
-      if (batteryPill) batteryPill.style.display = 'none';
-    }
+    await SafeHerBattery.init();
   },
 
   // 2. Accelerometer Shake-to-SOS Detection
