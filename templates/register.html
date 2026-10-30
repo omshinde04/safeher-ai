@@ -283,7 +283,11 @@
           submitBtn.style.opacity = '1';
         }
       } catch (err) {
-        errBox.innerText = 'Network error. Please try again.';
+        if (!navigator.onLine) {
+          errBox.innerText = '⚠️ Internet is required once to create your secure account. After registering, all SOS features work 100% offline!';
+        } else {
+          errBox.innerText = 'Network error. Please try again.';
+        }
         errBox.style.display = 'block';
         submitBtn.disabled = false;
         submitBtn.style.opacity = '1';

@@ -261,7 +261,11 @@
           submitBtn.style.opacity = '1';
         }
       } catch (err) {
-        errBox.innerText = 'Network error. Please check connection.';
+        if (!navigator.onLine) {
+          errBox.innerText = '⚠️ Internet is required for the initial sign in. Once logged in, your session and SOS features work 100% offline!';
+        } else {
+          errBox.innerText = 'Network error. Please check connection.';
+        }
         errBox.style.display = 'block';
         submitBtn.disabled = false;
         submitBtn.style.opacity = '1';
