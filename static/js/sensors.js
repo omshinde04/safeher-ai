@@ -4,18 +4,20 @@
 const SafeHerBattery = {
   currentLevel: 90,
   hasHardwareAPI: false,
+  isIOS: false,
 
   async init() {
+    this.isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
     // 1. Read calibrated value from localStorage
     const saved = localStorage.getItem('safeher_device_battery');
     if (saved) {
       this.currentLevel = Math.max(1, Math.min(100, parseInt(saved, 10)));
     } else {
       this.currentLevel = 90;
-      localStorage.setItem('safeher_device_battery', '90');
     }
 
-    // 2. If hardware API is supported (Android/Chrome/Edge), read exact live battery
+    // 2. If hardware Battery API is available (Android/Chrome/Edge), read exact live percentage
     if ('getBattery' in navigator) {
       try {
         const b = await navigator.getBattery();
@@ -35,18 +37,55 @@ const SafeHerBattery = {
       } catch (e) {
         console.warn('[Battery] Hardware API error:', e);
       }
+    } else {
+      // 3. Fallback for iOS Safari: check server profile for last saved level
+      if (!saved) {
+        try {
+          const resp = await fetch('/api/telemetry/status');
+          if (resp.ok) {
+            const data = await resp.json();
+            if (data.battery_level) {
+              this.currentLevel = data.battery_level;
+              localStorage.setItem('safeher_device_battery', this.currentLevel.toString());
+            }
+          }
+        } catch (e) {}
+      }
     }
 
     this.updateUI();
     this.bindEvents();
 
-    // 3. Immediately sync exact battery to server
+    // 4. Immediately sync exact battery to server
     this.syncTelemetryToServer();
 
-    // 4. Background heartbeat telemetry sync (every 25 seconds)
+    // 5. Background sync & Foreground wake-up polling
     setInterval(() => {
+      this.getLiveLevel();
       this.syncTelemetryToServer();
-    }, 25000);
+    }, 20000);
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        this.getLiveLevel();
+        this.syncTelemetryToServer();
+      }
+    });
+    window.addEventListener('focus', () => this.getLiveLevel());
+  },
+
+  async getLiveLevel() {
+    if ('getBattery' in navigator) {
+      try {
+        const b = await navigator.getBattery();
+        this.hasHardwareAPI = true;
+        this.currentLevel = Math.round(b.level * 100);
+        localStorage.setItem('safeher_device_battery', this.currentLevel.toString());
+        this.updateUI();
+        return this.currentLevel;
+      } catch (e) {}
+    }
+    return this.currentLevel;
   },
 
   setLevel(pct) {
@@ -89,7 +128,14 @@ const SafeHerBattery = {
     const banner = document.getElementById('battery-warning-banner');
 
     if (valSpan) valSpan.innerText = `${this.currentLevel}%`;
-    if (heroSpan) heroSpan.innerText = `${this.currentLevel}%`;
+    
+    if (heroSpan) {
+      if (this.hasHardwareAPI) {
+        heroSpan.innerHTML = `${this.currentLevel}% <span style="font-size:9px; background:#dcfce7; color:#15803d; padding:1px 5px; border-radius:6px; font-weight:800; margin-left:2px;">LIVE</span>`;
+      } else {
+        heroSpan.innerHTML = `${this.currentLevel}% <span style="font-size:9px; background:#ede9fe; color:#4f46e5; padding:1px 5px; border-radius:6px; font-weight:800; margin-left:2px;">SYNC ✏️</span>`;
+      }
+    }
 
     if (pill) {
       pill.style.display = 'flex';

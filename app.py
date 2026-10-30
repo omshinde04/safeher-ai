@@ -18,11 +18,48 @@ if os.path.exists(env_path):
                 if val:
                     os.environ[k.strip()] = val
 
+import time
+
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(24))
 
 # Initialize database on startup
 init_db()
+
+# --- Application Diagnostics & Event Logging System ---
+APP_START_TIME = time.time()
+SYSTEM_LOGS = []
+MAX_LOG_ENTRIES = 200
+
+def log_event(category, message, level="INFO"):
+    """Appends an event to the circular buffer and prints structured line for Render logs."""
+    now_str = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    client_ip = request.remote_addr if request else '127.0.0.1'
+    entry = {
+        'timestamp': now_str,
+        'category': category.upper(),
+        'level': level.upper(),
+        'message': message,
+        'ip': client_ip
+    }
+    SYSTEM_LOGS.append(entry)
+    if len(SYSTEM_LOGS) > MAX_LOG_ENTRIES:
+        SYSTEM_LOGS.pop(0)
+    print(f"[{now_str}] [{level.upper()}] [{category.upper()}] {message} (IP: {client_ip})", flush=True)
+
+@app.before_request
+def record_start_time():
+    request._start_time = time.time()
+
+@app.after_request
+def log_request_info(response):
+    # Skip noisy static assets to keep Render logs clean and readable
+    if not request.path.startswith('/static') and request.path not in ('/favicon.ico', '/manifest.json', '/sw.js'):
+        duration = round((time.time() - getattr(request, '_start_time', time.time())) * 1000, 1)
+        uid = session.get('user_id')
+        user_str = f"User #{uid}" if uid else "Guest"
+        print(f"[SafeHer AI] {request.method} {request.path} -> {response.status_code} ({duration}ms) | {user_str} | IP: {request.remote_addr}", flush=True)
+    return response
 
 # --- Helper Utilities ---
 def get_current_user_id():
@@ -424,6 +461,8 @@ def trigger_sos():
             'sms_url': sms_url
         })
 
+    log_event('SOS', f"🚨 SOS DISTRESS ACTIVATED! User #{user_id} ({user['name']}) | Mode: {trigger_type.upper()} | Battery: {battery}% | GPS: {lat},{lng} | Contacts: {len(contacts)}", level="ALERT")
+
     return jsonify({
         'success': True,
         'event_id': event_id,
@@ -450,6 +489,7 @@ def cancel_sos(event_id):
     conn.commit()
     conn.close()
 
+    log_event('SOS', f"SOS #{event_id} marked as CANCELLED by User #{user_id}")
     return jsonify({'success': True, 'message': 'SOS alert marked as cancelled.'})
 
 @app.route('/api/sos/history', methods=['GET'])
@@ -502,7 +542,31 @@ def update_telemetry():
     conn.commit()
     conn.close()
 
-    return jsonify({'success': True, 'synced_battery': battery})
+    log_event('TELEMETRY', f"User #{user_id} synced telemetry | Battery: {battery}% | GPS: {lat},{lng}")
+    return jsonify({'success': True, 'synced_battery': battery, 'latitude': lat, 'longitude': lng})
+
+@app.route('/api/telemetry/status', methods=['GET'])
+def get_telemetry_status():
+    """Returns the user's latest synced battery level and last known GPS coordinates."""
+    auth_err = require_auth()
+    if auth_err: return auth_err
+
+    user_id = get_current_user_id()
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT last_battery_level, last_latitude, last_longitude, last_seen FROM users WHERE id = ?", (user_id,))
+    row = cursor.fetchone()
+    conn.close()
+
+    if not row:
+        return jsonify({'error': 'User not found'}), 404
+
+    return jsonify({
+        'battery_level': row['last_battery_level'],
+        'latitude': row['last_latitude'],
+        'longitude': row['last_longitude'],
+        'last_seen': row['last_seen']
+    })
 
 # --- Journey Safety Check-In APIs ---
 @app.route('/api/checkin/start', methods=['POST'])
@@ -1014,6 +1078,66 @@ def gemini_check():
             }), 502
     except Exception as e:
         return jsonify({'status': 'exception', 'error': str(e)}), 500
+
+# --- Production System Health & Activity Logs Endpoints ---
+@app.route('/api/system/health', methods=['GET'])
+def system_health():
+    """
+    Returns real-time server health, uptime, database connectivity, and active distress counters.
+    Useful for Render health checks and uptime monitoring.
+    """
+    uptime_sec = int(time.time() - APP_START_TIME)
+    hours, remainder = divmod(uptime_sec, 3600)
+    mins, secs = divmod(remainder, 60)
+    uptime_str = f"{hours}h {mins}m {secs}s"
+
+    db_status = "connected"
+    users_count = 0
+    active_sos_count = 0
+    contacts_count = 0
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) as cnt FROM users")
+        users_count = cursor.fetchone()['cnt']
+        cursor.execute("SELECT COUNT(*) as cnt FROM sos_events WHERE status = 'active'")
+        active_sos_count = cursor.fetchone()['cnt']
+        cursor.execute("SELECT COUNT(*) as cnt FROM emergency_contacts")
+        contacts_count = cursor.fetchone()['cnt']
+        conn.close()
+    except Exception as e:
+        db_status = f"error: {str(e)}"
+
+    return jsonify({
+        'status': 'healthy' if db_status == 'connected' else 'degraded',
+        'timestamp': datetime.datetime.now().isoformat(),
+        'uptime': uptime_str,
+        'uptime_seconds': uptime_sec,
+        'database': db_status,
+        'registered_users': users_count,
+        'saved_contacts': contacts_count,
+        'active_sos_alerts': active_sos_count,
+        'environment': 'Render Production' if os.environ.get('RENDER') else 'Local / Cloud',
+        'server_time': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')
+    })
+
+@app.route('/api/system/logs', methods=['GET'])
+def system_logs():
+    """
+    Returns the latest circular application logs for live operational monitoring in Render.
+    Query parameter: ?limit=50 (max 100)
+    """
+    try:
+        limit = min(int(request.args.get('limit', 50)), 100)
+    except (ValueError, TypeError):
+        limit = 50
+
+    return jsonify({
+        'total_recorded_events': len(SYSTEM_LOGS),
+        'displayed': min(limit, len(SYSTEM_LOGS)),
+        'logs': list(reversed(SYSTEM_LOGS[-limit:])),
+        'server_time': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    })
 
 
 if __name__ == '__main__':

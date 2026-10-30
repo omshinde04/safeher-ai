@@ -107,7 +107,7 @@
       <div class="gps-bar">
         <div style="display:flex; align-items:center; gap:8px; min-width:0; overflow:hidden;">
           <span>📍</span>
-          <span id="gps-coords-display" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Detecting GPS...</span>
+          <span id="gps-coords-display" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; cursor:pointer;" title="Tap to refresh GPS location" onclick="if(typeof SOS!=='undefined') SOS.trackLocation();">Detecting GPS...</span>
         </div>
         <div id="btn-open-battery-calibrate" style="display:flex; align-items:center; gap:4px; cursor:pointer; background:#f1f5f9; padding:4px 10px; border-radius:12px; font-size:11px; font-weight:700; color:#334155; flex-shrink:0;" title="Tap to sync battery level">
           <span>⚡</span>
@@ -763,11 +763,11 @@
 
   <!-- Leaflet & SafeHer Core Scripts -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="/static/js/sensors.js?v=3.0"></script>
-  <script src="/static/js/sos.js?v=3.0"></script>
-  <script src="/static/js/map.js?v=3.0"></script>
-  <script src="/static/js/assistant.js?v=3.0"></script>
-  <script src="/static/js/checkin.js?v=3.0"></script>
-  <script src="/static/js/app.js?v=3.0"></script>
+  <script src="/static/js/sensors.js?v=4.0"></script>
+  <script src="/static/js/sos.js?v=4.0"></script>
+  <script src="/static/js/map.js?v=4.0"></script>
+  <script src="/static/js/assistant.js?v=4.0"></script>
+  <script src="/static/js/checkin.js?v=4.0"></script>
+  <script src="/static/js/app.js?v=4.0"></script>
 </body>
 </html>

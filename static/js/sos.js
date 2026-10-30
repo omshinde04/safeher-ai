@@ -14,6 +14,14 @@ const SOS = {
   init() {
     this.trackLocation();
     this.setupListeners();
+
+    // Auto-refresh GPS positioning when mobile screen turns on or tab regains focus
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        this.trackLocation();
+      }
+    });
+    window.addEventListener('focus', () => this.trackLocation());
   },
 
   // Synthesize loud emergency siren tone using Web Audio API (Zero external MP3 dependency)
@@ -60,27 +68,92 @@ const SOS = {
     }
   },
 
+  updateGpsUI(lat, lng, accuracy, isCached = false) {
+    const gpsEl = document.getElementById('gps-coords-display');
+    if (!gpsEl) return;
+    const suffix = isCached ? '(Last Known)' : `(±${Math.round(accuracy || 15)}m)`;
+    gpsEl.innerHTML = `${lat.toFixed(4)}, ${lng.toFixed(4)} <span style="font-size:10px; color:${isCached ? '#64748b' : '#059669'}; font-weight:700;">${suffix}</span>`;
+  },
+
   trackLocation() {
-    if ('geolocation' in navigator) {
-      navigator.geolocation.watchPosition(
-        (pos) => {
-          this.currentLocation.lat = pos.coords.latitude;
-          this.currentLocation.lng = pos.coords.longitude;
-          this.currentLocation.accuracy = pos.coords.accuracy;
-          
+    if (!('geolocation' in navigator)) {
+      const gpsEl = document.getElementById('gps-coords-display');
+      if (gpsEl) gpsEl.innerText = 'GPS not supported on device';
+      return;
+    }
+
+    // 1. Instant Cached Coordinate Loading (Eliminates "Pending" on mobile boot)
+    if (!this.currentLocation.lat) {
+      const cached = localStorage.getItem('safeher_cached_location');
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          if (parsed && parsed.lat && parsed.lng) {
+            this.currentLocation = parsed;
+            this.updateGpsUI(parsed.lat, parsed.lng, parsed.accuracy, true);
+          }
+        } catch (e) {}
+      }
+    }
+
+    // 2. Stage 1: Ultra-Fast Network/Wi-Fi Fix (< 1s response on iOS & Android)
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude, accuracy } = pos.coords;
+        this.currentLocation = { lat: latitude, lng: longitude, accuracy };
+        localStorage.setItem('safeher_cached_location', JSON.stringify({ lat: latitude, lng: longitude, accuracy }));
+        this.updateGpsUI(latitude, longitude, accuracy, false);
+
+        if (typeof SafeMap !== 'undefined' && SafeMap.updateUserMarker) {
+          SafeMap.updateUserMarker(latitude, longitude, accuracy);
+        }
+      },
+      (err) => {
+        console.warn('[SOS] Fast network location fallback:', err.message);
+        if (!this.currentLocation.lat) {
           const gpsEl = document.getElementById('gps-coords-display');
           if (gpsEl) {
-            gpsEl.innerText = `${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)} (±${Math.round(pos.coords.accuracy)}m)`;
+            if (err.code === 1) { // PERMISSION_DENIED
+              gpsEl.innerHTML = `<span style="color:#dc2626; cursor:pointer; font-weight:700;" onclick="SOS.trackLocation()">⚠️ Tap to Allow Location</span>`;
+            } else {
+              gpsEl.innerText = 'Acquiring live satellite lock...';
+            }
           }
-        },
-        (err) => {
-          console.warn('[SOS] Geolocation error:', err.message);
-          const gpsEl = document.getElementById('gps-coords-display');
-          if (gpsEl) gpsEl.innerText = 'GPS Signal Pending...';
-        },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 }
-      );
+        }
+      },
+      { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 }
+    );
+
+    // 3. Stage 2: Continuous High-Accuracy GPS Satellite Watcher
+    if (this.watchId) {
+      try { navigator.geolocation.clearWatch(this.watchId); } catch (e) {}
     }
+
+    this.watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        const { latitude, longitude, accuracy } = pos.coords;
+        this.currentLocation = { lat: latitude, lng: longitude, accuracy };
+        localStorage.setItem('safeher_cached_location', JSON.stringify({ lat: latitude, lng: longitude, accuracy }));
+        this.updateGpsUI(latitude, longitude, accuracy, false);
+
+        if (typeof SafeMap !== 'undefined' && SafeMap.updateUserMarker) {
+          SafeMap.updateUserMarker(latitude, longitude, accuracy);
+        }
+      },
+      (err) => {
+        console.warn('[SOS] High-accuracy GPS watcher note:', err.message);
+        // If we already have coordinates from Stage 1 or cache, NEVER erase with "Pending"!
+        if (!this.currentLocation.lat) {
+          const gpsEl = document.getElementById('gps-coords-display');
+          if (gpsEl) {
+            if (err.code === 1) {
+              gpsEl.innerHTML = `<span style="color:#dc2626; cursor:pointer; font-weight:700;" onclick="SOS.trackLocation()">⚠️ Tap to Allow Location</span>`;
+            }
+          }
+        }
+      },
+      { enableHighAccuracy: true, timeout: 25000, maximumAge: 3000 }
+    );
   },
 
   startCountdown(triggerType = 'manual') {
@@ -124,17 +197,43 @@ const SOS = {
     const overlay = document.getElementById('countdown-overlay');
     if (overlay) overlay.classList.remove('active');
 
-    // Get exact device battery level (hardware API or synced calibrated value)
+    // 1. Ensure GPS Coordinates are locked before sending alert
+    if (!this.currentLocation.lat && 'geolocation' in navigator) {
+      try {
+        await new Promise((resolve) => {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              this.currentLocation = {
+                lat: pos.coords.latitude,
+                lng: pos.coords.longitude,
+                accuracy: pos.coords.accuracy
+              };
+              resolve();
+            },
+            () => resolve(),
+            { enableHighAccuracy: false, timeout: 2000, maximumAge: 120000 }
+          );
+        });
+      } catch (e) {}
+    }
+
+    // Fallback to cached location if still null
+    if (!this.currentLocation.lat) {
+      const cached = localStorage.getItem('safeher_cached_location');
+      if (cached) {
+        try {
+          const p = JSON.parse(cached);
+          if (p.lat && p.lng) this.currentLocation = p;
+        } catch (e) {}
+      }
+    }
+
+    // 2. Real-Time Hardware Battery Level
     let batteryLevel = 90;
-    if (typeof SafeHerBattery !== 'undefined' && typeof SafeHerBattery.getLevel === 'function') {
-      batteryLevel = SafeHerBattery.getLevel();
+    if (window.SafeHerBattery && typeof window.SafeHerBattery.getLiveLevel === 'function') {
+      batteryLevel = await window.SafeHerBattery.getLiveLevel();
     } else if (window.SafeHerBattery && typeof window.SafeHerBattery.getLevel === 'function') {
       batteryLevel = window.SafeHerBattery.getLevel();
-    } else if (navigator.getBattery) {
-      try {
-        const b = await navigator.getBattery();
-        batteryLevel = Math.round(b.level * 100);
-      } catch (e) {}
     } else {
       const saved = localStorage.getItem('safeher_device_battery');
       if (saved) batteryLevel = parseInt(saved, 10);

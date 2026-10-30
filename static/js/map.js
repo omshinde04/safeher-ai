@@ -130,6 +130,34 @@ const SafeMap = {
     textSpan.innerText = text;
   },
 
+  updateUserMarker(latitude, longitude, accuracy) {
+    if (!this.map) return;
+    const userLatLng = [latitude, longitude];
+    if (!this.userMarker) {
+      const userIcon = L.divIcon({
+        className: 'custom-pulse-marker',
+        html: `<div style="width:18px; height:18px; background:#4f46e5; border-radius:50%; box-shadow:0 3px 12px rgba(79,70,229,0.5); border:3px solid #ffffff;"></div>`,
+        iconSize: [18, 18],
+        iconAnchor: [9, 9]
+      });
+      this.userMarker = L.marker(userLatLng, { icon: userIcon }).addTo(this.map);
+      this.userMarker.bindPopup('<b>You are here</b><br>SafeHer Live GPS Active');
+      this.accuracyCircle = L.circle(userLatLng, {
+        radius: Math.max(accuracy || 20, 20),
+        color: '#4f46e5',
+        fillColor: '#4f46e5',
+        fillOpacity: 0.12,
+        weight: 1.5
+      }).addTo(this.map);
+    } else {
+      this.userMarker.setLatLng(userLatLng);
+      if (this.accuracyCircle) {
+        this.accuracyCircle.setLatLng(userLatLng);
+        this.accuracyCircle.setRadius(Math.max(accuracy || 20, 20));
+      }
+    }
+  },
+
   async calculateRoute(destinationText) {
     if (!destinationText) return;
 
