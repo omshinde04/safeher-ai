@@ -126,8 +126,12 @@ def api_login():
     user = cursor.fetchone()
     conn.close()
 
-    if not user or not check_password_hash(user['password_hash'], password):
-        return jsonify({'error': 'Invalid email or password.'}), 401
+    if not user:
+        return jsonify({'error': 'No account found with this email. Please tap "Create Account" to register.'}), 401
+
+    clean_pass = password.strip() if isinstance(password, str) else ''
+    if not (check_password_hash(user['password_hash'], password) or check_password_hash(user['password_hash'], clean_pass)):
+        return jsonify({'error': 'Incorrect password. Please check your credentials.'}), 401
 
     session['user_id'] = user['id']
     session['user_name'] = user['name']

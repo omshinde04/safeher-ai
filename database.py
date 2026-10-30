@@ -98,6 +98,15 @@ def init_db():
     if cursor.fetchone()['cnt'] == 0:
         seed_safety_tips(cursor)
 
+    # Ensure primary user account exists
+    cursor.execute("SELECT id FROM users WHERE email = 'shindeom052@gmail.com'")
+    if not cursor.fetchone():
+        from werkzeug.security import generate_password_hash
+        cursor.execute('''
+            INSERT INTO users (name, email, phone, password_hash, guardian_code)
+            VALUES (?, ?, ?, ?, ?)
+        ''', ('Om Shinde', 'shindeom052@gmail.com', '9373545169', generate_password_hash('12345678'), 'SH-OM01'))
+
     conn.commit()
     conn.close()
 
