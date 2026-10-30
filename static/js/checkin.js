@@ -1,5 +1,5 @@
 // ==========================================================================
-// SAFEHER AI - ADVANCED JOURNEY SAFETY & 4-MEMBER GROUP TRAVEL ENGINE
+// SAFEHER AI - ADVANCED JOURNEY SAFETY CHECK-IN ENGINE
 // ==========================================================================
 
 const CheckIn = {
@@ -52,35 +52,19 @@ const CheckIn = {
       });
     });
 
-    // 3. 4-Member Group / Buddy Mode Toggle & Chips
-    const groupToggle = document.getElementById('toggle-group-mode');
-    const groupDetails = document.getElementById('group-mode-details');
-    if (groupToggle && groupDetails) {
-      groupToggle.addEventListener('change', () => {
-        groupDetails.style.display = groupToggle.checked ? 'block' : 'none';
-      });
-    }
-
-    const memberChips = document.querySelectorAll('.group-member-chip');
-    memberChips.forEach((chip) => {
-      chip.addEventListener('click', () => {
-        chip.classList.toggle('selected');
-      });
-    });
-
-    // 4. Start Journey Button
+    // 3. Start Journey Button
     const btnStart = document.getElementById('btn-start-checkin');
     if (btnStart) {
       btnStart.addEventListener('click', () => this.startJourney());
     }
 
-    // 5. Mark Safe Button
+    // 4. Mark Safe Button
     const btnSafe = document.getElementById('btn-reached-safe');
     if (btnSafe) {
       btnSafe.addEventListener('click', () => this.markSafe());
     }
 
-    // 6. Time Extension (+5m / +10m)
+    // 5. Time Extension (+5m / +10m)
     const extendBtns = document.querySelectorAll('.btn-extend-pill');
     extendBtns.forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -89,7 +73,7 @@ const CheckIn = {
       });
     });
 
-    // 7. Manual Escalation
+    // 6. Manual Escalation
     const btnEscalate = document.getElementById('btn-escalate-now');
     if (btnEscalate) {
       btnEscalate.addEventListener('click', () => {
@@ -99,7 +83,7 @@ const CheckIn = {
       });
     }
 
-    // 8. Safety Challenge Modal Buttons ("Are you safe?")
+    // 7. Safety Challenge Modal Buttons ("Are you safe?")
     const btnChallengeSafe = document.getElementById('btn-challenge-safe');
     if (btnChallengeSafe) {
       btnChallengeSafe.addEventListener('click', () => this.resolveChallengeSafe());
@@ -110,7 +94,7 @@ const CheckIn = {
       btnChallengeHelp.addEventListener('click', () => this.escalateToSOS());
     }
 
-    // 9. Fake Call Escape Triggers
+    // 8. Fake Call Escape Triggers
     const btnFakeCall = document.getElementById('btn-trigger-fake-call');
     if (btnFakeCall) {
       btnFakeCall.addEventListener('click', () => this.startFakeCallSimulation());
@@ -126,23 +110,11 @@ const CheckIn = {
       btnDeclineFakeCall.addEventListener('click', () => this.endFakeCall());
     }
 
-    // 10. Refresh History
+    // 9. Refresh History
     const btnRefreshHist = document.getElementById('btn-refresh-checkin-history');
     if (btnRefreshHist) {
       btnRefreshHist.addEventListener('click', () => this.loadHistory());
     }
-  },
-
-  getSelectedGroupMembers() {
-    const groupToggle = document.getElementById('toggle-group-mode');
-    if (!groupToggle || !groupToggle.checked) return '';
-
-    const selected = [];
-    document.querySelectorAll('.group-member-chip.selected').forEach((c) => {
-      const name = c.getAttribute('data-member');
-      if (name) selected.push(name);
-    });
-    return selected.join(', ');
   },
 
   async startJourney() {
@@ -150,7 +122,6 @@ const CheckIn = {
     const destination = destInput && destInput.value.trim() ? destInput.value.trim() : 'Commute Route';
     const vehicleInput = document.getElementById('checkin-vehicle-no');
     const vehicleNo = vehicleInput ? vehicleInput.value.trim() : '';
-    const groupMembers = this.getSelectedGroupMembers();
 
     try {
       const resp = await fetch('/api/checkin/start', {
@@ -160,8 +131,7 @@ const CheckIn = {
           duration_minutes: this.selectedDuration,
           destination: destination,
           transport_mode: this.selectedTransport,
-          vehicle_no: vehicleNo,
-          group_members: groupMembers
+          vehicle_no: vehicleNo
         })
       });
 
@@ -175,7 +145,7 @@ const CheckIn = {
           waBtn.href = data.trip_share_url;
         }
 
-        this.showActiveJourneyUI(this.selectedDuration, destination, this.selectedTransport, vehicleNo, groupMembers);
+        this.showActiveJourneyUI(this.selectedDuration, destination, this.selectedTransport, vehicleNo);
         this.loadHistory();
       }
     } catch (e) {
@@ -184,13 +154,12 @@ const CheckIn = {
     }
   },
 
-  showActiveJourneyUI(durationMinutes, destination, mode, vehicleNo, groupMembers) {
+  showActiveJourneyUI(durationMinutes, destination, mode, vehicleNo) {
     const setupCard = document.getElementById('checkin-setup-card');
     const activeDisplay = document.getElementById('active-checkin-display');
     const destLabel = document.getElementById('active-journey-destination');
     const modeBadge = document.getElementById('active-transport-badge');
     const vehicleBadge = document.getElementById('active-vehicle-badge');
-    const groupDisplay = document.getElementById('active-group-members-display');
 
     if (setupCard) setupCard.style.display = 'none';
     if (activeDisplay) activeDisplay.style.display = 'block';
@@ -205,15 +174,6 @@ const CheckIn = {
         vehicleBadge.innerText = `Plate: ${vehicleNo}`;
       } else {
         vehicleBadge.style.display = 'none';
-      }
-    }
-
-    if (groupDisplay) {
-      if (groupMembers) {
-        groupDisplay.style.display = 'block';
-        groupDisplay.innerText = `👥 Group Companions: ${groupMembers}`;
-      } else {
-        groupDisplay.style.display = 'none';
       }
     }
 
@@ -278,7 +238,7 @@ const CheckIn = {
 
     this.resetJourneyUI();
     this.loadHistory();
-    alert('🎉 Journey completed safely! Your guardians and group members can rest easy.');
+    alert('🎉 Journey completed safely! Your guardians can rest easy.');
   },
 
   triggerSafetyChallenge() {
@@ -466,7 +426,6 @@ const CheckIn = {
             : `<span style="background:#fffbeb; color:#d97706; border:1px solid #fde68a; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:800;">⏱️ ${j.status.toUpperCase()}</span>`;
 
         const vehText = j.vehicle_no ? `<span style="font-size:11px; color:#64748b; background:#f1f5f9; padding:2px 6px; border-radius:4px; font-weight:700;">Plate: ${j.vehicle_no}</span>` : '';
-        const grpText = j.group_members ? `<div style="font-size:11px; color:#6366f1; margin-top:2px;">👥 ${j.group_members}</div>` : '';
 
         return `
           <div class="journey-item-card">
@@ -479,7 +438,6 @@ const CheckIn = {
               <div style="font-size:11px; color:#64748b;">
                 ${j.duration_minutes}m journey • ${j.started_at ? j.started_at.slice(5, 16) : ''}
               </div>
-              ${grpText}
             </div>
             <div style="flex-shrink:0;">
               ${statusBadge}

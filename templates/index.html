@@ -259,7 +259,7 @@
     </section>
 
     <!-- ====================================================================
-         TAB 4: JOURNEY SAFETY CHECK-IN & 4-MEMBER GROUP TRAVEL
+         TAB 4: JOURNEY SAFETY CHECK-IN
          ==================================================================== -->
     <section id="tab-checkin" class="view-tab">
       <div id="checkin-setup-card" class="glass-card">
@@ -271,7 +271,7 @@
           Set a monitored safety timer for your commute. If you don't confirm safe arrival before time runs out, SafeHer AI automatically escalates and alerts your guardians.
         </p>
 
-        <!-- Feature 1: Transport Mode Selector -->
+        <!-- Transport Mode Selector -->
         <div style="font-size:12px; font-weight:700; color:#0f172a; margin-bottom:8px;">Transport Mode:</div>
         <div class="transport-selector">
           <button type="button" class="btn-transport selected" data-mode="walking">
@@ -298,40 +298,7 @@
           <input type="text" id="checkin-vehicle-no" class="chat-input" style="width:100%;" placeholder="e.g. MH 14 AB 1234 (White Swift / Uber)">
         </div>
 
-        <!-- Feature 2: 4-Member Group / Buddy Safety Travel Mode -->
-        <div class="group-buddy-card">
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <div style="display:flex; align-items:center; gap:6px;">
-              <span style="font-size:16px;">👥</span>
-              <span style="font-size:12px; font-weight:800; color:#0f172a;">4-Member Group Mode</span>
-            </div>
-            <label class="switch">
-              <input type="checkbox" id="toggle-group-mode" checked>
-              <span class="slider"></span>
-            </label>
-          </div>
-          <div id="group-mode-details" style="margin-top:10px;">
-            <p style="font-size:11px; color:#64748b; margin-bottom:6px;">
-              Select companions sharing this commute to sync safety notifications across the 4-member group:
-            </p>
-            <div class="group-member-grid">
-              <div class="group-member-chip selected" data-member="Sakshi (Lead)">
-                <span>✓</span> <span>Sakshi (Lead)</span>
-              </div>
-              <div class="group-member-chip selected" data-member="Om (Tech)">
-                <span>✓</span> <span>Om (Tech)</span>
-              </div>
-              <div class="group-member-chip selected" data-member="Anjali (Member)">
-                <span>✓</span> <span>Anjali (Member)</span>
-              </div>
-              <div class="group-member-chip selected" data-member="Pooja (Member)">
-                <span>✓</span> <span>Pooja (Member)</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Feature 3: Duration Selector -->
+        <!-- Duration Selector -->
         <div style="font-size:12px; font-weight:700; color:#0f172a; margin-bottom:8px;">Safety Timer Duration:</div>
         <div class="duration-selector">
           <button type="button" class="btn-duration" data-mins="5">5m</button>
@@ -358,8 +325,7 @@
           <span id="active-vehicle-badge" style="display:none; background:#f1f5f9; color:#334155; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:700;">MH 14 AB 1234</span>
         </div>
 
-        <div id="active-journey-destination" style="font-size:15px; color:#0f172a; font-weight:800; margin-bottom:4px;">Heading to destination...</div>
-        <div id="active-group-members-display" style="font-size:12px; color:#6366f1; font-weight:600; margin-bottom:14px;">👥 Group: Sakshi, Om, Anjali, Pooja</div>
+        <div id="active-journey-destination" style="font-size:15px; color:#0f172a; font-weight:800; margin-bottom:14px;">Heading to destination...</div>
 
         <div class="timer-circular-badge">
           <div id="journey-timer-digits" class="timer-digits">15:00</div>

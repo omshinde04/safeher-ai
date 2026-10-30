@@ -66,7 +66,6 @@ def init_db():
             duration_minutes INTEGER NOT NULL,
             transport_mode TEXT DEFAULT 'walking',
             vehicle_no TEXT,
-            group_members TEXT,
             status TEXT DEFAULT 'running',
             started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             expires_at TIMESTAMP,
@@ -76,7 +75,7 @@ def init_db():
     ''')
 
     # Safe migration checks for existing tables
-    for col, col_def in [('transport_mode', "TEXT DEFAULT 'walking'"), ('vehicle_no', 'TEXT'), ('group_members', 'TEXT')]:
+    for col, col_def in [('transport_mode', "TEXT DEFAULT 'walking'"), ('vehicle_no', 'TEXT')]:
         try:
             cursor.execute(f"ALTER TABLE checkins ADD COLUMN {col} {col_def}")
         except Exception:

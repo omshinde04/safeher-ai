@@ -1078,7 +1078,7 @@ input:checked + .slider:before {
 }
 
 /* ==========================================================================
-   VIEW 4: JOURNEY SAFETY CHECK-IN & GROUP TRAVEL
+   VIEW 4: JOURNEY SAFETY CHECK-IN
    ========================================================================== */
 .duration-selector {
   display: grid;
@@ -1140,43 +1140,6 @@ input:checked + .slider:before {
   background: #eef2ff;
   color: var(--primary-indigo);
   box-shadow: 0 2px 8px rgba(79, 70, 229, 0.15);
-}
-
-/* Group 4-Member Buddy Mode */
-.group-buddy-card {
-  background: #f8fafc;
-  border: 1.5px dashed #cbd5e1;
-  border-radius: 14px;
-  padding: 12px 14px;
-  margin-bottom: 16px;
-}
-
-.group-member-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
-  margin-top: 8px;
-}
-
-.group-member-chip {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  padding: 6px 10px;
-  border-radius: 8px;
-  font-size: 11px;
-  font-weight: 700;
-  color: #334155;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.group-member-chip.selected {
-  border-color: #6366f1;
-  background: #eef2ff;
-  color: #4f46e5;
 }
 
 .active-checkin-display {
