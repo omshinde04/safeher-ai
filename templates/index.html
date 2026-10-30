@@ -517,9 +517,14 @@
       <div style="font-family:var(--font-heading); font-size:20px; font-weight:800; color:#dc2626; margin-bottom:6px;">
         🚨 SOS Alerts Dispatched!
       </div>
-      <div id="sos-dispatch-telemetry" style="background:#fef2f2; border:1px solid #fee2e2; border-radius:10px; padding:10px 14px; margin-bottom:14px; font-size:12px; font-weight:700; color:#b91c1c; display:flex; justify-content:space-between; align-items:center;">
+      <div id="sos-dispatch-telemetry" style="background:#fef2f2; border:1px solid #fee2e2; border-radius:10px; padding:10px 14px; margin-bottom:10px; font-size:12px; font-weight:700; color:#b91c1c; display:flex; justify-content:space-between; align-items:center;">
         <span id="sos-telemetry-battery">🔋 Battery: 90%</span>
         <span id="sos-telemetry-gps">📍 Live GPS Attached</span>
+      </div>
+
+      <div style="font-size:12px; color:#15803d; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:9px 12px; margin-bottom:12px; font-weight:700; display:flex; align-items:center; gap:8px;">
+        <span style="font-size:14px;">✉️</span>
+        <span>Emergency alert email sent automatically to trusted guardians!</span>
       </div>
 
       <div id="sos-contact-actions" style="margin-bottom:16px;"></div>
@@ -553,8 +558,8 @@
           <input type="tel" id="contact-phone" class="chat-input" style="width:100%;" required placeholder="e.g. 9876543210">
         </div>
         <div style="margin-bottom:12px;">
-          <label style="font-size:12px; color:#475569; display:block; margin-bottom:4px; font-weight:600;">Email (Optional)</label>
-          <input type="email" id="contact-email" class="chat-input" style="width:100%;" placeholder="e.g. guardian@gmail.com">
+          <label style="font-size:12px; color:#475569; display:block; margin-bottom:4px; font-weight:600;">Guardian Email * (Required for Emergency Alerts)</label>
+          <input type="email" id="contact-email" class="chat-input" style="width:100%;" required placeholder="e.g. guardian@gmail.com">
         </div>
         <div style="margin-bottom:18px;">
           <label style="font-size:12px; color:#475569; display:block; margin-bottom:4px; font-weight:600;">Relationship</label>
@@ -651,8 +656,8 @@
           <input type="tel" id="edit-contact-phone" class="chat-input" style="width:100%;" required placeholder="e.g. 9876543210">
         </div>
         <div style="margin-bottom:12px;">
-          <label style="font-size:12px; color:#475569; display:block; margin-bottom:4px; font-weight:600;">Email (Optional)</label>
-          <input type="email" id="edit-contact-email" class="chat-input" style="width:100%;" placeholder="e.g. guardian@gmail.com">
+          <label style="font-size:12px; color:#475569; display:block; margin-bottom:4px; font-weight:600;">Guardian Email * (Required for Emergency Alerts)</label>
+          <input type="email" id="edit-contact-email" class="chat-input" style="width:100%;" required placeholder="e.g. guardian@gmail.com">
         </div>
         <div style="margin-bottom:18px;">
           <label style="font-size:12px; color:#475569; display:block; margin-bottom:4px; font-weight:600;">Relationship</label>

@@ -18,42 +18,137 @@ if os.path.exists(env_path):
                 if val:
                     os.environ[k.strip()] = val
 
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.utils import formataddr
+
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(24))
 
-# Fast2SMS Automated SMS Gateway API Key (Loaded securely from environment)
-FAST2SMS_API_KEY = os.environ.get('FAST2SMS_API_KEY')
+# SMTP Automated Email Dispatcher Configuration
+SMTP_EMAIL = os.environ.get('SMTP_EMAIL', 'omshinde0484@gmail.com')
+SMTP_PASSWORD = os.environ.get('SMTP_PASSWORD', 'pmjdcqoldnxaygqg')
+SMTP_SENDER_NAME = os.environ.get('SMTP_SENDER_NAME', 'SafeHer AI Emergency Alert')
 
-def send_automated_fast2sms(contact_phones, user_name, maps_link, battery, trigger_type, guardian_url):
-    """Dispatches background SMS via Fast2SMS API directly to guardian phone SIM cards."""
-    if not FAST2SMS_API_KEY or not contact_phones:
+def send_emergency_emails(contact_emails, user_name, maps_link, battery, trigger_type, guardian_url, lat, lng):
+    """Sends high-priority, rich HTML emergency alert emails to all guardians via SMTP."""
+    if not SMTP_EMAIL or not SMTP_PASSWORD or not contact_emails:
         return
-    try:
-        clean_numbers = []
-        for p in contact_phones:
-            digits = "".join([c for c in str(p) if c.isdigit()])
-            if len(digits) >= 10:
-                clean_numbers.append(digits[-10:])
-        if not clean_numbers:
-            return
 
-        sms_text = f"EMERGENCY SOS: {user_name} needs help! Loc: {maps_link} | Batt: {battery}% | Live Tracker: {guardian_url}"
-        url = "https://www.fast2sms.com/dev/bulkV2"
-        payload = {
-            "route": "q",
-            "message": sms_text[:160],
-            "language": "english",
-            "flash": 0,
-            "numbers": ",".join(clean_numbers)
-        }
-        headers = {
-            "authorization": FAST2SMS_API_KEY,
-            "Content-Type": "application/x-www-form-urlencoded"
-        }
-        resp = requests.post(url, data=payload, headers=headers, timeout=6)
-        print(f"[Fast2SMS] Background dispatch to {clean_numbers}: status {resp.status_code} - {resp.text}")
+    clean_recipients = [e.strip() for e in contact_emails if e and '@' in e]
+    if not clean_recipients:
+        return
+
+    now_str = datetime.datetime.now().strftime('%Y-%m-%d %I:%M:%S %p')
+    subject = f"🚨 URGENT: Emergency SOS Alert from {user_name}!"
+    coords_display = f"{lat:.4f}, {lng:.4f}" if lat and lng else "Live Satellite Tracking"
+
+    html_content = f"""<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 20px; }}
+    .container {{ max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }}
+    .header {{ background: linear-gradient(135deg, #e11d48 0%, #be123c 100%); padding: 24px; text-align: center; color: #ffffff; }}
+    .header h1 {{ margin: 0; font-size: 22px; font-weight: 800; letter-spacing: 0.5px; }}
+    .header p {{ margin: 6px 0 0 0; font-size: 13px; opacity: 0.9; }}
+    .body {{ padding: 24px; }}
+    .alert-box {{ background: #fff1f2; border: 1.5px solid #fecdd3; border-radius: 12px; padding: 16px; margin-bottom: 20px; }}
+    .alert-box p {{ margin: 0; color: #9f1239; font-size: 14px; font-weight: 700; line-height: 1.5; }}
+    .data-grid {{ width: 100%; border-collapse: collapse; margin-bottom: 20px; }}
+    .data-grid td {{ padding: 10px 12px; font-size: 13px; border-bottom: 1px solid #f1f5f9; }}
+    .data-grid td.label {{ color: #64748b; font-weight: 600; width: 35%; }}
+    .data-grid td.value {{ color: #0f172a; font-weight: 700; }}
+    .btn {{ display: block; text-align: center; padding: 14px 20px; border-radius: 10px; font-weight: 800; font-size: 14px; text-decoration: none; margin-bottom: 10px; }}
+    .btn-maps {{ background: #2563eb; color: #ffffff !important; }}
+    .btn-guardian {{ background: #4f46e5; color: #ffffff !important; }}
+    .footer {{ background: #f8fafc; padding: 16px; text-align: center; font-size: 11px; color: #94a3b8; border-top: 1px solid #e2e8f0; }}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🚨 EMERGENCY SOS DISTRESS ALERT</h1>
+      <p>SafeHer AI Automated Telemetry Emergency System</p>
+    </div>
+    <div class="body">
+      <div class="alert-box">
+        <p>⚠️ <strong>{user_name}</strong> has triggered an active emergency SOS alert and urgently needs your assistance!</p>
+      </div>
+      <table class="data-grid">
+        <tr>
+          <td class="label">Protected User:</td>
+          <td class="value">{user_name}</td>
+        </tr>
+        <tr>
+          <td class="label">Trigger Mode:</td>
+          <td class="value"><span style="background:#fee2e2; color:#dc2626; padding:2px 8px; border-radius:4px; font-size:11px;">{trigger_type.upper()}</span></td>
+        </tr>
+        <tr>
+          <td class="label">Device Battery:</td>
+          <td class="value">🔋 {battery}%</td>
+        </tr>
+        <tr>
+          <td class="label">Incident Time:</td>
+          <td class="value">{now_str}</td>
+        </tr>
+        <tr>
+          <td class="label">GPS Coordinates:</td>
+          <td class="value">{coords_display}</td>
+        </tr>
+      </table>
+
+      <a href="{maps_link}" class="btn btn-maps" target="_blank">📍 Open Live GPS on Google Maps ↗</a>
+      <a href="{guardian_url}" class="btn btn-guardian" target="_blank">🛡️ Open Live Guardian Telemetry Monitor ↗</a>
+
+      <div style="margin-top:20px; padding:12px; background:#f1f5f9; border-radius:8px; font-size:12px; color:#475569; text-align:center;">
+        <strong>Immediate Emergency Numbers:</strong> Dial <strong>112</strong> (National Helpline) or <strong>1091</strong> (Women Helpline)
+      </div>
+    </div>
+    <div class="footer">
+      SafeHer AI • Automated Emergency Notification Engine • JSPM's RSCOE Polytechnic, Pune
+    </div>
+  </div>
+</body>
+</html>"""
+
+    plain_body = f"""EMERGENCY SOS ALERT!
+{user_name} has triggered an active emergency SOS alert!
+
+Device Battery: {battery}%
+Trigger Mode: {trigger_type.upper()}
+Time: {now_str}
+
+Live Location: {maps_link}
+Live Guardian Monitor: {guardian_url}
+
+National Emergency Helpline: 112 | Women Helpline: 1091
+"""
+
+    try:
+        server = smtplib.SMTP('smtp.gmail.com', 587, timeout=10)
+        server.starttls()
+        server.login(SMTP_EMAIL, SMTP_PASSWORD)
+
+        for recipient in clean_recipients:
+            msg = MIMEMultipart('alternative')
+            msg['From'] = formataddr((SMTP_SENDER_NAME, SMTP_EMAIL))
+            msg['To'] = recipient
+            msg['Subject'] = subject
+            msg['Reply-To'] = 'safeherai@gmail.com'
+            msg['X-Priority'] = '1'
+
+            msg.attach(MIMEText(plain_body, 'plain', 'utf-8'))
+            msg.attach(MIMEText(html_content, 'html', 'utf-8'))
+
+            server.sendmail(SMTP_EMAIL, [recipient], msg.as_string())
+            print(f"[Email Dispatch] Successfully delivered SOS alert to {recipient}")
+
+        server.quit()
     except Exception as e:
-        print(f"[Fast2SMS] Auto-dispatch error: {e}")
+        print(f"[Email Dispatch] Error delivering emergency email: {e}")
 
 # Initialize database on startup
 init_db()
@@ -302,11 +397,14 @@ def add_contact():
     data = request.get_json() or {}
     name = data.get('name', '').strip()
     phone = data.get('phone', '').strip()
-    email = data.get('email', '').strip()
+    email = data.get('email', '').strip().lower()
     relation = data.get('relation', 'Guardian').strip()
 
     if not name or not phone:
         return jsonify({'error': 'Name and phone number are required.'}), 400
+
+    if not email or '@' not in email or '.' not in email.split('@')[-1]:
+        return jsonify({'error': 'A valid guardian email address is strictly required for instant SOS alerts.'}), 400
 
     conn = get_db()
     cursor = conn.cursor()
@@ -349,11 +447,14 @@ def update_contact(contact_id):
     data = request.get_json() or {}
     name = data.get('name', '').strip()
     phone = data.get('phone', '').strip()
-    email = data.get('email', '').strip()
+    email = data.get('email', '').strip().lower()
     relation = data.get('relation', 'Guardian').strip()
 
     if not name or not phone:
         return jsonify({'error': 'Name and phone number are required.'}), 400
+
+    if not email or '@' not in email or '.' not in email.split('@')[-1]:
+        return jsonify({'error': 'A valid guardian email address is strictly required for instant SOS alerts.'}), 400
 
     conn = get_db()
     cursor = conn.cursor()
@@ -458,13 +559,13 @@ def trigger_sos():
             'sms_url': sms_url
         })
 
-    # Trigger Automated Background SMS via Fast2SMS API to all guardians
-    guardian_phones = [c['phone'] for c in contacts if c.get('phone')]
-    if guardian_phones:
+    # Trigger Automated Emergency Email Dispatch via Gmail SMTP to all guardians
+    contact_emails = [c['email'] for c in contacts if c.get('email')]
+    if contact_emails:
         guardian_url = f"{request.host_url}guardian/{user['guardian_code']}"
         threading.Thread(
-            target=send_automated_fast2sms,
-            args=(guardian_phones, user['name'], maps_link, battery, trigger_type, guardian_url),
+            target=send_emergency_emails,
+            args=(contact_emails, user['name'], maps_link, battery, trigger_type, guardian_url, lat, lng),
             daemon=True
         ).start()
 
