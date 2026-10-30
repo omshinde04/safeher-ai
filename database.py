@@ -88,20 +88,6 @@ def init_db():
     if cursor.fetchone()['cnt'] == 0:
         seed_safety_tips(cursor)
 
-    # Seed demo account if not present (for zero-config cloud deployments like Render)
-    cursor.execute("SELECT id FROM users WHERE email = 'demo@safeher.in'")
-    if not cursor.fetchone():
-        from werkzeug.security import generate_password_hash
-        cursor.execute('''
-            INSERT INTO users (name, email, phone, password_hash, guardian_code)
-            VALUES (?, ?, ?, ?, ?)
-        ''', ('Sakshi Anbhule', 'demo@safeher.in', '9876543210', generate_password_hash('SafeHer@2026'), 'SH-DEMO1'))
-        demo_id = cursor.lastrowid
-        cursor.execute('''
-            INSERT INTO emergency_contacts (user_id, name, phone, email, relation)
-            VALUES (?, ?, ?, ?, ?)
-        ''', (demo_id, 'Om Shinde (Guardian)', '9373545169', 'omshinde0412@gmail.com', 'Parent'))
-
     conn.commit()
     conn.close()
 
