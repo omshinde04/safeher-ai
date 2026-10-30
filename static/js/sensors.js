@@ -15,7 +15,7 @@ const SafeHerBattery = {
       localStorage.setItem('safeher_device_battery', '90');
     }
 
-    // 2. If hardware API is supported (Android/Chrome), read live battery
+    // 2. If hardware API is supported (Android/Chrome/Edge), read exact live battery
     if ('getBattery' in navigator) {
       try {
         const b = await navigator.getBattery();
@@ -27,6 +27,7 @@ const SafeHerBattery = {
           this.currentLevel = Math.round(b.level * 100);
           localStorage.setItem('safeher_device_battery', this.currentLevel.toString());
           this.updateUI();
+          this.syncTelemetryToServer();
         };
 
         b.addEventListener('levelchange', handleUpdate);
@@ -38,16 +39,47 @@ const SafeHerBattery = {
 
     this.updateUI();
     this.bindEvents();
+
+    // 3. Immediately sync exact battery to server
+    this.syncTelemetryToServer();
+
+    // 4. Background heartbeat telemetry sync (every 25 seconds)
+    setInterval(() => {
+      this.syncTelemetryToServer();
+    }, 25000);
   },
 
   setLevel(pct) {
     this.currentLevel = Math.max(1, Math.min(100, parseInt(pct, 10)));
     localStorage.setItem('safeher_device_battery', this.currentLevel.toString());
     this.updateUI();
+    this.syncTelemetryToServer();
   },
 
   getLevel() {
     return this.currentLevel;
+  },
+
+  async syncTelemetryToServer() {
+    try {
+      let lat = null;
+      let lng = null;
+      if (typeof SOS !== 'undefined' && SOS.currentLocation) {
+        lat = SOS.currentLocation.lat;
+        lng = SOS.currentLocation.lng;
+      }
+      await fetch('/api/telemetry/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          battery_level: this.currentLevel,
+          latitude: lat,
+          longitude: lng
+        })
+      });
+    } catch (e) {
+      // Telemetry heartbeat fail is non-fatal
+    }
   },
 
   updateUI() {

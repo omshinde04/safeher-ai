@@ -138,6 +138,13 @@ const App = {
         if (editName) editName.value = data.user.name || '';
         if (editPhone) editPhone.value = data.user.phone || '';
         if (editEmail) editEmail.value = data.user.email || '';
+
+        // Sync user battery state if not using hardware API
+        if (data.user.last_battery_level && typeof SafeHerBattery !== 'undefined' && !SafeHerBattery.hasHardwareAPI) {
+          if (!localStorage.getItem('safeher_device_battery')) {
+            SafeHerBattery.setLevel(data.user.last_battery_level);
+          }
+        }
       } else {
         window.location.href = '/login';
       }

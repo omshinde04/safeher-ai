@@ -126,7 +126,9 @@ const SOS = {
 
     // Get exact device battery level (hardware API or synced calibrated value)
     let batteryLevel = 90;
-    if (window.SafeHerBattery && typeof window.SafeHerBattery.getLevel === 'function') {
+    if (typeof SafeHerBattery !== 'undefined' && typeof SafeHerBattery.getLevel === 'function') {
+      batteryLevel = SafeHerBattery.getLevel();
+    } else if (window.SafeHerBattery && typeof window.SafeHerBattery.getLevel === 'function') {
       batteryLevel = window.SafeHerBattery.getLevel();
     } else if (navigator.getBattery) {
       try {

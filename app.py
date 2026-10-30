@@ -157,7 +157,7 @@ def api_me():
 
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("SELECT id, name, email, phone, guardian_code, created_at FROM users WHERE id = ?", (user_id,))
+    cursor.execute("SELECT id, name, email, phone, guardian_code, last_battery_level, created_at FROM users WHERE id = ?", (user_id,))
     user = cursor.fetchone()
 
     cursor.execute("SELECT COUNT(*) as contact_count FROM emergency_contacts WHERE user_id = ?", (user_id,))
@@ -176,6 +176,7 @@ def api_me():
             'email': user['email'],
             'phone': user['phone'],
             'guardian_code': user['guardian_code'],
+            'last_battery_level': user['last_battery_level'] if user['last_battery_level'] is not None else 90,
             'contact_count': contact_count
         }
     })
@@ -374,6 +375,16 @@ def trigger_sos():
         INSERT INTO sos_events (user_id, latitude, longitude, accuracy, battery_level, trigger_type, status)
         VALUES (?, ?, ?, ?, ?, ?, 'active')
     ''', (user_id, lat, lng, accuracy, battery, trigger_type))
+
+    # Also sync latest telemetry to users profile
+    cursor.execute('''
+        UPDATE users
+        SET last_battery_level = ?,
+            last_latitude = COALESCE(?, last_latitude),
+            last_longitude = COALESCE(?, last_longitude),
+            last_seen = CURRENT_TIMESTAMP
+        WHERE id = ?
+    ''', (battery, lat, lng, user_id))
     conn.commit()
     event_id = cursor.lastrowid
 
@@ -460,6 +471,38 @@ def sos_history():
 
     return jsonify({'history': history})
 
+# --- Real-Time Telemetry & Device Battery Sync API ---
+@app.route('/api/telemetry/update', methods=['POST'])
+def update_telemetry():
+    auth_err = require_auth()
+    if auth_err: return auth_err
+
+    user_id = get_current_user_id()
+    data = request.get_json() or {}
+    raw_batt = data.get('battery_level')
+    lat = data.get('latitude')
+    lng = data.get('longitude')
+
+    try:
+        battery = int(raw_batt) if raw_batt is not None else None
+    except (ValueError, TypeError):
+        battery = None
+
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('''
+        UPDATE users
+        SET last_battery_level = COALESCE(?, last_battery_level),
+            last_latitude = COALESCE(?, last_latitude),
+            last_longitude = COALESCE(?, last_longitude),
+            last_seen = CURRENT_TIMESTAMP
+        WHERE id = ?
+    ''', (battery, lat, lng, user_id))
+    conn.commit()
+    conn.close()
+
+    return jsonify({'success': True, 'synced_battery': battery})
+
 # --- Journey Safety Check-In APIs ---
 @app.route('/api/checkin/start', methods=['POST'])
 def start_checkin():
@@ -472,6 +515,13 @@ def start_checkin():
     destination = data.get('destination', 'Home/Commute').strip()
     transport_mode = data.get('transport_mode', 'walking').strip() # 'walking', 'cab', 'auto', 'bus'
     vehicle_no = data.get('vehicle_no', '').strip().upper()
+    lat = data.get('latitude')
+    lng = data.get('longitude')
+
+    try:
+        battery = int(data.get('battery_level', 90))
+    except (ValueError, TypeError):
+        battery = 90
 
     now = datetime.datetime.now()
     expires_at = now + datetime.timedelta(minutes=duration_minutes)
@@ -481,9 +531,19 @@ def start_checkin():
     # Mark old running checkins as superseded
     cursor.execute("UPDATE checkins SET status = 'superseded' WHERE user_id = ? AND status = 'running'", (user_id,))
     cursor.execute('''
-        INSERT INTO checkins (user_id, destination, duration_minutes, transport_mode, vehicle_no, status, started_at, expires_at)
-        VALUES (?, ?, ?, ?, ?, 'running', ?, ?)
-    ''', (user_id, destination, duration_minutes, transport_mode, vehicle_no, now.strftime('%Y-%m-%d %H:%M:%S'), expires_at.strftime('%Y-%m-%d %H:%M:%S')))
+        INSERT INTO checkins (user_id, destination, duration_minutes, transport_mode, vehicle_no, battery_level, start_lat, start_lng, status, started_at, expires_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'running', ?, ?)
+    ''', (user_id, destination, duration_minutes, transport_mode, vehicle_no, battery, lat, lng, now.strftime('%Y-%m-%d %H:%M:%S'), expires_at.strftime('%Y-%m-%d %H:%M:%S')))
+    
+    # Also sync latest telemetry to users profile
+    cursor.execute('''
+        UPDATE users
+        SET last_battery_level = ?,
+            last_latitude = COALESCE(?, last_latitude),
+            last_longitude = COALESCE(?, last_longitude),
+            last_seen = CURRENT_TIMESTAMP
+        WHERE id = ?
+    ''', (battery, lat, lng, user_id))
     conn.commit()
     checkin_id = cursor.lastrowid
 
@@ -492,11 +552,12 @@ def start_checkin():
     user = cursor.fetchone()
     conn.close()
 
-    # Pre-formatted Live Trip Share Message
+    # Pre-formatted Live Trip Share Message with Exact Battery Percentage
     vehicle_text = f" | Vehicle: {vehicle_no}" if vehicle_no else ""
     share_msg = (
         f"🚕 *SafeHer Journey Started by {user['name']}*\n"
         f"Destination: {destination} ({transport_mode.title()}){vehicle_text}\n"
+        f"Battery: {battery}%\n"
         f"Safety Check-In Timer: {duration_minutes} mins\n"
         f"Live Guardian Tracker: {request.host_url}guardian/{user['guardian_code']}\n"
         f"Auto-SOS will trigger if not confirmed safe."
@@ -510,6 +571,7 @@ def start_checkin():
         'destination': destination,
         'transport_mode': transport_mode,
         'vehicle_no': vehicle_no,
+        'battery_level': battery,
         'expires_at': expires_at.isoformat(),
         'trip_share_url': share_url,
         'trip_share_text': share_msg
@@ -625,7 +687,7 @@ def checkin_history():
 def guardian_status(guardian_code):
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("SELECT id, name, phone, created_at FROM users WHERE guardian_code = ?", (guardian_code,))
+    cursor.execute("SELECT id, name, phone, last_battery_level, last_latitude, last_longitude, last_seen, created_at FROM users WHERE guardian_code = ?", (guardian_code,))
     user = cursor.fetchone()
 
     if not user:
@@ -644,7 +706,7 @@ def guardian_status(guardian_code):
 
     # Active Checkin
     cursor.execute('''
-        SELECT destination, duration_minutes, status, started_at, expires_at
+        SELECT destination, duration_minutes, transport_mode, vehicle_no, battery_level, start_lat, start_lng, status, started_at, expires_at
         FROM checkins
         WHERE user_id = ? AND status = 'running'
         ORDER BY started_at DESC
@@ -657,12 +719,41 @@ def guardian_status(guardian_code):
     contacts = [dict(c) for c in cursor.fetchall()]
     conn.close()
 
+    # Determine real-time exact battery level
+    # Priority: Active SOS -> Active Journey Checkin -> User Profile Telemetry -> Past SOS -> 90 fallback
+    effective_battery = None
+    if latest_sos and latest_sos['status'] == 'active' and latest_sos['battery_level'] is not None:
+        effective_battery = latest_sos['battery_level']
+    elif active_checkin and active_checkin['battery_level'] is not None:
+        effective_battery = active_checkin['battery_level']
+    elif user['last_battery_level'] is not None:
+        effective_battery = user['last_battery_level']
+    elif latest_sos and latest_sos['battery_level'] is not None:
+        effective_battery = latest_sos['battery_level']
+
+    # Determine best known coordinates
+    best_lat = None
+    best_lng = None
+    if latest_sos and latest_sos['latitude'] and latest_sos['longitude']:
+        best_lat = latest_sos['latitude']
+        best_lng = latest_sos['longitude']
+    elif active_checkin and active_checkin['start_lat'] and active_checkin['start_lng']:
+        best_lat = active_checkin['start_lat']
+        best_lng = active_checkin['start_lng']
+    elif user['last_latitude'] and user['last_longitude']:
+        best_lat = user['last_latitude']
+        best_lng = user['last_longitude']
+
     return jsonify({
         'user': {
             'name': user['name'],
             'phone': user['phone'],
-            'guardian_code': guardian_code
+            'guardian_code': guardian_code,
+            'last_seen': user['last_seen']
         },
+        'battery_level': effective_battery,
+        'latitude': best_lat,
+        'longitude': best_lng,
         'latest_sos': dict(latest_sos) if latest_sos else None,
         'active_checkin': dict(active_checkin) if active_checkin else None,
         'contacts': contacts

@@ -75,7 +75,24 @@ def init_db():
     ''')
 
     # Safe migration checks for existing tables
-    for col, col_def in [('transport_mode', "TEXT DEFAULT 'walking'"), ('vehicle_no', 'TEXT')]:
+    for col, col_def in [
+        ('last_battery_level', "INTEGER DEFAULT 90"),
+        ('last_latitude', "REAL"),
+        ('last_longitude', "REAL"),
+        ('last_seen', "TIMESTAMP")
+    ]:
+        try:
+            cursor.execute(f"ALTER TABLE users ADD COLUMN {col} {col_def}")
+        except Exception:
+            pass
+
+    for col, col_def in [
+        ('transport_mode', "TEXT DEFAULT 'walking'"),
+        ('vehicle_no', 'TEXT'),
+        ('battery_level', "INTEGER"),
+        ('start_lat', "REAL"),
+        ('start_lng', "REAL")
+    ]:
         try:
             cursor.execute(f"ALTER TABLE checkins ADD COLUMN {col} {col_def}")
         except Exception:

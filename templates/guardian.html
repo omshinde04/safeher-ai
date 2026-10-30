@@ -201,20 +201,48 @@
         }
 
         // GPS & Battery
-        let lat = 18.6186;
-        let lng = 73.7482;
-        let battery = 100;
-
-        if (data.latest_sos) {
-          if (data.latest_sos.latitude && data.latest_sos.longitude) {
-            lat = data.latest_sos.latitude;
-            lng = data.latest_sos.longitude;
-          }
-          battery = data.latest_sos.battery_level || 100;
-          document.getElementById('last-ping-time').innerText = data.latest_sos.timestamp;
+        let lat = data.latitude || 18.6186;
+        let lng = data.longitude || 73.7482;
+        if (data.latest_sos && data.latest_sos.latitude && data.latest_sos.longitude) {
+          lat = data.latest_sos.latitude;
+          lng = data.latest_sos.longitude;
         }
 
-        document.getElementById('guardian-battery-val').innerText = `${battery}%`;
+        // Exact Telemetry Battery Level
+        let battery = null;
+        if (data.battery_level !== undefined && data.battery_level !== null) {
+          battery = data.battery_level;
+        } else if (data.latest_sos && data.latest_sos.battery_level !== undefined && data.latest_sos.battery_level !== null) {
+          battery = data.latest_sos.battery_level;
+        } else if (data.active_checkin && data.active_checkin.battery_level !== undefined && data.active_checkin.battery_level !== null) {
+          battery = data.active_checkin.battery_level;
+        }
+
+        const battEl = document.getElementById('guardian-battery-val');
+        if (battEl) {
+          if (battery !== null) {
+            battEl.innerText = `${battery}%`;
+            battEl.style.color = battery <= 20 ? '#dc2626' : (battery <= 50 ? '#d97706' : '#16a34a');
+          } else {
+            battEl.innerText = 'Syncing...';
+            battEl.style.color = '#64748b';
+          }
+        }
+
+        // Ping time
+        const pingEl = document.getElementById('last-ping-time');
+        if (pingEl) {
+          if (data.latest_sos && data.latest_sos.timestamp) {
+            pingEl.innerText = data.latest_sos.timestamp;
+          } else if (data.user && data.user.last_seen) {
+            pingEl.innerText = data.user.last_seen;
+          } else if (data.active_checkin && data.active_checkin.started_at) {
+            pingEl.innerText = data.active_checkin.started_at;
+          } else {
+            pingEl.innerText = 'Live GPS';
+          }
+        }
+
         document.getElementById('btn-open-google-maps').href = `https://www.google.com/maps?q=${lat},${lng}`;
 
         initGuardianMap(lat, lng);

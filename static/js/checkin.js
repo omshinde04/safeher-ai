@@ -121,7 +121,16 @@ const CheckIn = {
     const destInput = document.getElementById('checkin-destination');
     const destination = destInput && destInput.value.trim() ? destInput.value.trim() : 'Commute Route';
     const vehicleInput = document.getElementById('checkin-vehicle-no');
-    const vehicleNo = vehicleInput ? vehicleInput.value.trim() : '';
+    const battLevel = (typeof SafeHerBattery !== 'undefined' && typeof SafeHerBattery.getLevel === 'function')
+      ? SafeHerBattery.getLevel()
+      : (localStorage.getItem('safeher_device_battery') ? parseInt(localStorage.getItem('safeher_device_battery'), 10) : 90);
+
+    let lat = null;
+    let lng = null;
+    if (typeof SOS !== 'undefined' && SOS.currentLocation) {
+      lat = SOS.currentLocation.lat;
+      lng = SOS.currentLocation.lng;
+    }
 
     try {
       const resp = await fetch('/api/checkin/start', {
@@ -131,7 +140,10 @@ const CheckIn = {
           duration_minutes: this.selectedDuration,
           destination: destination,
           transport_mode: this.selectedTransport,
-          vehicle_no: vehicleNo
+          vehicle_no: vehicleNo,
+          battery_level: battLevel,
+          latitude: lat,
+          longitude: lng
         })
       });
 
