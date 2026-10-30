@@ -485,7 +485,8 @@ def trigger_sos():
 
     # Retrieve User and Contacts
     cursor.execute("SELECT name, phone, guardian_code FROM users WHERE id = ?", (user_id,))
-    user = cursor.fetchone()
+    user_row = cursor.fetchone()
+    user = dict(user_row) if user_row else {}
 
     cursor.execute("SELECT name, phone, email FROM emergency_contacts WHERE user_id = ?", (user_id,))
     contacts = [dict(c) for c in cursor.fetchall()]
@@ -494,11 +495,14 @@ def trigger_sos():
     # Generate Google Maps Coordinate link (always valid, never "unavailable")
     maps_link = f"https://www.google.com/maps?q={lat},{lng}"
 
+    guardian_code = user.get('guardian_code', '')
+    guardian_url = f"{request.host_url}guardian/{guardian_code}" if guardian_code else request.host_url
+
     sos_msg = (
-        f"🚨 *EMERGENCY SOS ALERT from {user['name']}!*\n"
+        f"🚨 *EMERGENCY SOS ALERT from {user.get('name', 'User')}!*\n"
         f"I need immediate help! My current live location is:\n{maps_link}\n"
         f"Battery: {battery}% | Trigger: {trigger_type.upper()}\n"
-        f"Guardian Live Tracker: {request.host_url}guardian/{user['guardian_code']}"
+        f"Guardian Live Tracker: {guardian_url}"
     )
 
     # Format direct WhatsApp and SMS communication links
